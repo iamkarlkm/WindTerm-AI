@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.16)
+project(TerminalHistoryPlugin)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 REQUIRED COMPONENTS Core Sql)
+add_library(terminal_history_plugin MODULE TerminalHistoryPlugin.h TerminalHistoryPlugin.cpp)
+target_link_libraries(terminal_history_plugin PRIVATE Qt6::Core Qt6::Sql)
+set_target_properties(terminal_history_plugin PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins")
