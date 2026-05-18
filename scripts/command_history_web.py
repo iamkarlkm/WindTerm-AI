@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Command History & Session Manager Web UI"""
+"""Enhanced Command History & Session Manager Web UI with One-Click Restore"""
 
 from flask import Flask, jsonify, request, render_template_string
-import sqlite3, os
+import sqlite3
 from pathlib import Path
 from datetime import datetime
 
@@ -12,42 +12,27 @@ HISTORY_DB = DB_PATH / "command_history.db"
 SESSION_DB = DB_PATH / "session_manager.db"
 
 def get_db(db_path):
-    if not db_path.exists(): return None
+    if not db_path.exists():
+        return None
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     return conn
-
-@app.route('/api/history')
-def get_history():
-    working_dir = request.args.get('dir', '')
-    session_id = request.args.get('session', '')
-    limit = int(request.args.get('limit', 100))
-    conn = get_db(HISTORY_DB)
-    if not conn: return jsonify([])
-    cur = conn.cursor()
-    if working_dir:
-        cur.execute("SELECT * FROM command_history WHERE working_directory LIKE ? ORDER BY timestamp DESC LIMIT ?", (f'%{working_dir}%', limit))
-    elif session_id:
-        cur.execute("SELECT * FROM command_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?", (session_id, limit))
-    else:
-        cur.execute("SELECT * FROM command_history ORDER BY timestamp DESC LIMIT ?", (limit,))
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
 
 @app.route('/api/sessions')
 def get_sessions():
     limit = int(request.args.get('limit', 50))
     conn = get_db(SESSION_DB)
-    if not conn: return jsonify([])
+    if not conn:
+        return jsonify([])
     cur = conn.cursor()
     cur.execute("SELECT * FROM sessions ORDER BY last_active_at DESC LIMIT ?", (limit,))
     sessions = []
     for r in cur.fetchall():
         session = dict(r)
-        # Get environment variables
         cur.execute("SELECT var_name, var_value FROM session_environment WHERE session_id = ?", (session['session_id'],))
         session['environment'] = {row['var_name']: row['var_value'] for row in cur.fetchall()}
+        cur.execute("SELECT command FROM command_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT 10", (session['session_id'],))
+        session['recent_commands'] = [row['command'] for row in cur.fetchall()]
         sessions.append(session)
     conn.close()
     return jsonify(sessions)
@@ -55,11 +40,13 @@ def get_sessions():
 @app.route('/api/session/<session_id>')
 def get_session(session_id):
     conn = get_db(SESSION_DB)
-    if not conn: return jsonify({})
+    if not conn:
+        return jsonify({'error': 'Database not found'}), 404
     cur = conn.cursor()
     cur.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,))
     row = cur.fetchone()
-    if not row: return jsonify({})
+    if not row:
+        return jsonify({'error': 'Session not found'}), 404
     session = dict(row)
     cur.execute("SELECT var_name, var_value FROM session_environment WHERE session_id = ?", (session_id,))
     session['environment'] = {row['var_name']: row['var_value'] for row in cur.fetchall()}
@@ -71,17 +58,98 @@ def get_session(session_id):
 @app.route('/api/restore/<session_id>')
 def restore_session(session_id):
     conn = get_db(SESSION_DB)
-    if not conn: return jsonify({'error': 'Session not found'})
+    if not conn:
+        return jsonify({'error': 'Database not found'}), 404
     cur = conn.cursor()
-    cur.execute("SELECT working_directory, last_successful_command FROM sessions WHERE session_id = ?", (session_id,))
+    cur.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,))
     row = cur.fetchone()
+    if not row:
+        return jsonify({'error': 'Session not found'}), 404
+    session = dict(row)
     conn.close()
-    if not row: return jsonify({'error': 'Session not found'})
+    
+    restore_cmd = f"python3 session_restore.py restore {session_id}"
+    restore_url = f"windterm-ai://restore/{session_id}"
+    
     return jsonify({
-        'working_directory': row[0],
-        'last_command': row[1],
-        'session_id': session_id
+        'session_id': session['session_id'],
+        'session_name': session.get('session_name', ''),
+        'connection_type': session.get('connection_type', 'ssh'),
+        'host': session.get('host', 'localhost'),
+        'port': session.get('port', 22),
+        'username': session.get('username', ''),
+        'working_directory': session.get('working_directory', ''),
+        'last_successful_command': session.get('last_successful_command', ''),
+        'environment': session.get('environment', {}),
+        'restore_command': restore_cmd,
+        'restore_url': restore_url,
+        'instructions': f"""
+# One-Click Restore Instructions
+
+## Option 1: Terminal Command
+```bash
+cd /workspace/WindTerm-Extensions/scripts
+{restore_cmd}
+```
+
+## Option 2: Direct SSH (for SSH sessions)
+```bash
+ssh {session.get('username', '') + '@' if session.get('username') else ''}{session.get('host', '')} -p {session.get('port', 22)}
+# Then manually:
+cd {session.get('working_directory', '')}
+{session.get('last_successful_command', '')}
+```
+
+## Option 3: Copy Commands
+Working Directory:
+```bash
+cd {session.get('working_directory', '/')}
+```
+
+Last Command:
+```bash
+{session.get('last_successful_command', 'echo "No command saved"')}
+```
+"""
     })
+
+@app.route('/api/history')
+def get_history():
+    session_id = request.args.get('session', '')
+    limit = int(request.args.get('limit', 200))
+    conn = get_db(HISTORY_DB)
+    if not conn:
+        return jsonify([])
+    cur = conn.cursor()
+    if session_id:
+        cur.execute("SELECT * FROM command_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT ?", (session_id, limit))
+    else:
+        cur.execute("SELECT * FROM command_history ORDER BY timestamp DESC LIMIT ?", (limit,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+@app.route('/api/quick-stats')
+def get_stats():
+    stats = {'total_sessions': 0, 'active_sessions': 0, 'total_commands': 0}
+    
+    conn = get_db(SESSION_DB)
+    if conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) as cnt FROM sessions")
+        stats['total_sessions'] = cur.fetchone()['cnt']
+        cur.execute("SELECT COUNT(*) as cnt FROM sessions WHERE is_active = 1")
+        stats['active_sessions'] = cur.fetchone()['cnt']
+        conn.close()
+    
+    conn = get_db(HISTORY_DB)
+    if conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) as cnt FROM command_history")
+        stats['total_commands'] = cur.fetchone()['cnt']
+        conn.close()
+    
+    return jsonify(stats)
 
 @app.route('/')
 def index():
@@ -89,66 +157,154 @@ def index():
 <!DOCTYPE html>
 <html><head>
 <title>WindTerm Session Manager</title>
+<meta charset="utf-8">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI",monospace,sans-serif;background:#1e1e1e;color:#d4d4d4;padding:20px}
-h1,h2{margin-bottom:15px;color:#569cd6}
-.container{max-width:1400px;margin:0 auto}
+body{font-family:"Segoe UI","Microsoft YaHei",monospace,sans-serif;background:#1e1e1e;color:#d4d4d4;padding:20px;line-height:1.6}
+h1,h2,h3{margin-bottom:15px;color:#569cd6}
+.container{max-width:1600px;margin:0 auto}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:30px}
+.stat-card{background:#2d2d30;padding:20px;border-radius:8px;border-left:4px solid #569cd6}
+.stat-value{font-size:32px;font-weight:bold;color:#4ec9b0}
+.stat-label{color:#808080;font-size:14px;margin-top:5px}
 .tabs{display:flex;margin-bottom:20px;border-bottom:2px solid #3e3e42}
-.tab{padding:10px 20px;cursor:pointer;border:none;background:none;color:#d4d4d4;font-size:14px}
+.tab{padding:12px 24px;cursor:pointer;border:none;background:none;color:#d4d4d4;font-size:14px;font-weight:500;transition:all 0.2s}
 .tab.active{border-bottom:2px solid #569cd6;color:#569cd6}
-.tab:hover{color:#569cd6}
+.tab:hover{color:#569cd6;background:#252526}
 .panel{display:none}
 .panel.active{display:block}
-table{width:100%;border-collapse:collapse;background:#252526;margin-bottom:20px}
-td,th{border:1px solid #3e3e42;padding:10px;text-align:left}
-th{background:#2d2d30;color:#569cd6;font-weight:600}
+table{width:100%;border-collapse:collapse;background:#252526;margin-bottom:20px;border-radius:4px;overflow:hidden}
+td,th{border:1px solid #3e3e42;padding:12px;text-align:left}
+th{background:#2d2d30;color:#569cd6;font-weight:600;text-transform:uppercase;font-size:12px}
 tr:nth-child(even){background:#2a2a2b}
 tr:hover{background:#37373d}
-.input-group{margin-bottom:15px;display:flex;gap:10px}
-input[type="text"]{flex:1;padding:10px;background:#3c3c3c;border:1px solid #3e3e42;color:#d4d4d4;border-radius:4px;font-size:14px}
-input[type="text"]:focus{outline:none;border-color:#569cd6}
-button{padding:10px 20px;background:#0e639c;color:white;border:none;border-radius:4px;cursor:pointer;font-size:14px}
-button:hover{background:#1177bb}
-.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:12px;margin-right:5px}
-.badge-ssh{background:#0e639c}
-.badge-telnet{background:#ce9178}
-.badge-serial{background:#b5cea8}
-.env-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-top:10px}
-.env-item{background:#2d2d30;padding:10px;border-radius:4px;border-left:3px solid #569cd6}
-.env-name{color:#9cdcfe;font-weight:600}
-.env-value{color:#ce9178;margin-top:5px;word-break:break-all}
-.session-details{background:#252526;padding:15px;border-radius:4px;margin-top:10px}
-.command-list{max-height:300px;overflow-y:auto}
-.timestamp{color:#6a9955;font-size:12px}
-.dir{color:#4ec9b0;font-size:13px}
-.restore-btn{padding:5px 10px;font-size:12px;background:#4ec9b0}
-.restore-btn:hover{background:#5dd4b9}
+.session-row:hover{background:#2d3a2d}
+.session-row.success{border-left:3px solid #4ec9b0}
+.badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;margin-right:5px}
+.badge-ssh{background:#0e639c;color:white}
+.badge-telnet{background:#ce9178;color:#1e1e1e}
+.badge-serial{background:#b5cea8;color:#1e1e1e}
+.badge-local{background:#4ec9b0;color:#1e1e1e}
+.btn{padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.2s;text-decoration:none;display:inline-block}
+.btn-restore{background:#4ec9b0;color:#1e1e1e}
+.btn-restore:hover{background:#5dd4b9;transform:translateY(-1px)}
+.btn-details{background:#0e639c;color:white}
+.btn-details:hover{background:#1177bb}
+.btn-copy{background:#ce9178;color:#1e1e1e;padding:4px 10px;font-size:11px}
+.btn-copy:hover{background:#d49d85}
+.input-group{margin-bottom:20px;display:flex;gap:10px;align-items:center}
+input[type="text"]{flex:1;padding:12px;background:#3c3c3c;border:1px solid #3e3e42;color:#d4d4d4;border-radius:4px;font-size:14px}
+input[type="text"]:focus{outline:none;border-color:#569cd6;box-shadow:0 0 0 2px rgba(86,156,214,0.2)}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto}
+.modal.active{display:block}
+.modal-content{background:#252526;margin:5% auto;padding:30px;border-radius:8px;max-width:900px;border:1px solid #3e3e42}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #3e3e42;padding-bottom:15px}
+.modal-close{background:none;border:none;color:#808080;font-size:28px;cursor:pointer}
+.modal-close:hover{color:#d4d4d4}
+.env-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:15px 0}
+.env-item{background:#2d2d30;padding:12px;border-radius:4px;border-left:3px solid #569cd6}
+.env-name{color:#9cdcfe;font-weight:600;font-size:13px;margin-bottom:5px}
+.env-value{color:#ce9178;font-size:12px;word-break:break-all;max-height:60px;overflow-y:auto}
+.command-list{max-height:400px;overflow-y:auto;background:#1e1e1e;border-radius:4px;padding:15px}
+.command-item{padding:10px;border-bottom:1px solid #3e3e42;font-family:monospace;font-size:13px}
+.command-item:last-child{border-bottom:none}
+.command-item:hover{background:#2d2d30}
+.timestamp{color:#6a9955;font-size:11px;margin-right:10px}
+.working-dir{color:#4ec9b0;font-size:12px}
+.session-info{background:#2d2d30;padding:20px;border-radius:4px;margin-bottom:20px}
+.info-row{display:flex;margin-bottom:10px}
+.info-label{color:#808080;width:150px;font-size:13px}
+.info-value{color:#d4d4d4;font-size:13px}
+.restore-box{background:#1e3a1e;border:1px solid #4ec9b0;border-radius:4px;padding:20px;margin-top:20px}
+.restore-box h3{color:#4ec9b0;margin-bottom:15px}
+.code-block{background:#1e1e1e;padding:15px;border-radius:4px;overflow-x:auto;font-family:Consolas,monospace;font-size:13px;color:#d4d4d4;margin:10px 0}
+.code-block code{color:#ce9178}
+.action-buttons{display:flex;gap:10px;margin-top:15px}
+.refresh-btn{position:fixed;bottom:20px;right:20px;width:50px;height:50px;border-radius:50%;background:#0e639c;color:white;border:none;cursor:pointer;font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,0.3)}
+.refresh-btn:hover{background:#1177bb;transform:scale(1.1)}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.refresh-btn.spinning{animation:spin 1s linear}
 </style>
 </head>
 <body><div class="container">
 <h1>📦 WindTerm Session Manager</h1>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-value" id="stat-total">-</div>
+        <div class="stat-label">Total Sessions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-active">-</div>
+        <div class="stat-label">Active Sessions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-commands">-</div>
+        <div class="stat-label">Commands Recorded</div>
+    </div>
+</div>
+
 <div class="tabs">
-    <div class="tab active" onclick="showTab('sessions')">Sessions</div>
-    <div class="tab" onclick="showTab('history')">Command History</div>
+    <div class="tab active" onclick="showTab('sessions')">📋 Sessions</div>
+    <div class="tab" onclick="showTab('history')">📜 Command History</div>
 </div>
+
 <div id="sessions" class="panel active">
-    <h2>Active Sessions</h2>
-    <table><thead><tr><th>Session ID</th><th>Host</th><th>Protocol</th><th>Working Directory</th><th>Last Command</th><th>Last Active</th><th>Actions</th></tr></thead>
-    <tbody id="sessions-data"></tbody></table>
+    <div class="input-group">
+        <input type="text" id="filter-session" placeholder="Filter by host or name...">
+        <button class="btn btn-details" onclick="loadSessions()">Search</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Session</th>
+                <th>Host</th>
+                <th>Type</th>
+                <th>Working Directory</th>
+                <th>Last Command</th>
+                <th>Last Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="sessions-data"></tbody>
+    </table>
 </div>
+
 <div id="history" class="panel">
-    <h2>Command History</h2>
     <div class="input-group">
         <input type="text" id="filter-dir" placeholder="Filter by working directory...">
-        <button onclick="loadHistory()">Filter</button>
+        <input type="text" id="filter-cmd" placeholder="Search commands..." style="flex:1">
+        <button class="btn btn-details" onclick="loadHistory()">Search</button>
     </div>
-    <table><thead><tr><th>Time</th><th>Directory</th><th>Command</th><th>Session</th></tr></thead>
-    <tbody id="history-data"></tbody></table>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Session</th>
+                <th>Directory</th>
+                <th>Command</th>
+            </tr>
+        </thead>
+        <tbody id="history-data"></tbody>
+    </table>
 </div>
+
+<div id="session-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Session Details</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modal-body"></div>
+    </div>
 </div>
+
+<button class="refresh-btn" onclick="loadStats()" title="Refresh">⟳</button>
+
 <script>
 let sessionsCache = [];
+
 function showTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -157,64 +313,191 @@ function showTab(name) {
     if (name === 'sessions') loadSessions();
     else loadHistory();
 }
+
+async function loadStats() {
+    const res = await fetch('/api/quick-stats');
+    const stats = await res.json();
+    document.getElementById('stat-total').textContent = stats.total_sessions || 0;
+    document.getElementById('stat-active').textContent = stats.active_sessions || 0;
+    document.getElementById('stat-commands').textContent = stats.total_commands || 0;
+}
+
 async function loadSessions() {
     const res = await fetch('/api/sessions?limit=50');
     sessionsCache = await res.json();
-    document.getElementById('sessions-data').innerHTML = sessionsCache.map(s => `
-        <tr>
-            <td><code style="font-size:11px">${s.session_id.substring(0,8)}...</code></td>
-            <td>${s.host || 'Local'}</td>
-            <td><span class="badge badge-${(s.protocol||'ssh').toLowerCase()}">${s.protocol||'SSH'}</span></td>
-            <td class="dir">${s.working_directory || 'N/A'}</td>
-            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${s.last_command || 'None'}</td>
-            <td class="timestamp">${s.last_active_at}</td>
-            <td><button class="restore-btn" onclick="showSession('${s.session_id}')">View Details</button></td>
+    const filter = document.getElementById('filter-session').value.toLowerCase();
+    const filtered = filter ? sessionsCache.filter(s => 
+        (s.host||'').toLowerCase().includes(filter) || 
+        (s.session_name||'').toLowerCase().includes(filter)
+    ) : sessionsCache;
+    
+    document.getElementById('sessions-data').innerHTML = filtered.map(s => {
+        const statusBadge = s.is_active ? '🟢' : '⚪';
+        const typeClass = (s.connection_type||'ssh').toLowerCase();
+        return `
+        <tr class="session-row ${s.last_successful_command ? 'success' : ''}">
+            <td>${statusBadge}</td>
+            <td>
+                <div style="font-weight:600">${s.session_name||'Unnamed'}</div>
+                <div style="font-size:11px;color:#808080">${s.session_id.substring(0,8)}...</div>
+            </td>
+            <td>${s.host||'Local'}:${s.port||'-'}</td>
+            <td><span class="badge badge-${typeClass}">${(s.connection_type||'ssh').toUpperCase()}</span></td>
+            <td class="working-dir">${s.working_directory||'N/A'}</td>
+            <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis" title="${s.last_command||''}">
+                ${s.last_command||'<span style="color:#808080">None</span>'}
+            </td>
+            <td style="font-size:12px;color:#808080">${s.last_active_at||'-'}</td>
+            <td>
+                <button class="btn btn-restore" onclick="restoreSession('${s.session_id}')">🚀 Restore</button>
+                <button class="btn btn-details" onclick="showSessionDetails('${s.session_id}')" style="margin-left:5px">Details</button>
+            </td>
         </tr>
-    `).join('');
+        `;
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:#808080;padding:40px">No sessions found</td></tr>';
 }
-async function showSession(sessionId) {
-    const res = await fetch(`/api/session/${sessionId}`);
-    const s = await res.json();
-    if (!s.session_id) return alert('Session not found');
-    const envHtml = Object.entries(s.environment||{}).map(([k,v]) => 
-        `<div class="env-item"><div class="env-name">${k}</div><div class="env-value">${v}</div></div>`
-    ).join('');
-    const cmdHtml = (s.commands||[]).slice(0,20).map(c => 
-        `<tr><td class="timestamp">${c.timestamp}</td><td class="dir">${c.working_directory||'N/A'}</td><td>${c.command}</td></tr>`
-    ).join('');
-    const html = `
-        <div class="session-details">
-            <h3>Session: ${s.session_id.substring(0,8)}...</h3>
-            <p><strong>Host:</strong> ${s.host||'Local'} | <strong>Protocol:</strong> ${s.protocol||'SSH'} | <strong>Port:</strong> ${s.port||22}</p>
-            <p><strong>Working Directory:</strong> ${s.working_directory||'N/A'}</p>
-            <p><strong>Last Command:</strong> ${s.last_command||'None'}</p>
-            <p><strong>Last Successful Command:</strong> <code style="background:#2d2d30;padding:2px 6px">${s.last_successful_command||'N/A'}</code></p>
-            <p><strong>Created:</strong> ${s.created_at} | <strong>Last Active:</strong> ${s.last_active_at}</p>
-            <h4 style="margin:15px 0 10px">Environment Variables</h4>
-            <div class="env-grid">${envHtml || '<p>No environment variables saved</p>'}</div>
-            <h4 style="margin:15px 0 10px">Recent Commands</h4>
-            <table class="command-list"><thead><tr><th>Time</th><th>Directory</th><th>Command</th></tr></thead><tbody>${cmdHtml || '<tr><td colspan="3">No commands recorded</td></tr>'}</tbody></table>
-        </div>
-    `;
-    document.getElementById('sessions').insertAdjacentHTML('afterbegin', html);
-}
+
 async function loadHistory() {
     const dir = document.getElementById('filter-dir').value;
-    const res = await fetch(`/api/history?dir=${encodeURIComponent(dir)}&limit=200`);
+    const cmd = document.getElementById('filter-cmd').value;
+    let url = '/api/history?limit=200';
+    if (dir) url += `&dir=${encodeURIComponent(dir)}`;
+    const res = await fetch(url);
     const data = await res.json();
-    document.getElementById('history-data').innerHTML = data.map(r => `
+    const filtered = cmd ? data.filter(r => (r.command||'').toLowerCase().includes(cmd.toLowerCase())) : data;
+    
+    document.getElementById('history-data').innerHTML = filtered.map(r => `
         <tr>
-            <td class="timestamp">${r.timestamp}</td>
-            <td class="dir">${r.working_directory||'N/A'}</td>
-            <td style="max-width:600px">${r.command}</td>
-            <td><code style="font-size:11px">${r.session_id ? r.session_id.substring(0,8)+'...' : 'N/A'}</code></td>
+            <td class="timestamp">${r.timestamp||'-'}</td>
+            <td><span class="badge badge-ssh">${(r.session_id||'N/A').substring(0,8)}...</span></td>
+            <td class="working-dir">${r.working_directory||'N/A'}</td>
+            <td style="font-family:monospace;max-width:600px;word-break:break-all">${r.command||'-'}</td>
         </tr>
-    `).join('');
+    `).join('') || '<tr><td colspan="4" style="text-align:center;color:#808080;padding:40px">No commands found</td></tr>';
 }
+
+async function restoreSession(sessionId) {
+    const res = await fetch(`/api/restore/${sessionId}`);
+    const data = await res.json();
+    
+    if (data.error) {
+        alert('Error: ' + data.error);
+        return;
+    }
+    
+    const instructions = `
+<div class="session-info">
+    <div class="info-row"><span class="info-label">Session:</span><span class="info-value">${data.session_name||sessionId}</span></div>
+    <div class="info-row"><span class="info-label">Host:</span><span class="info-value">${data.host||'Local'}:${data.port||'-'}</span></div>
+    <div class="info-row"><span class="info-label">Type:</span><span class="info-value">${(data.connection_type||'ssh').toUpperCase()}</span></div>
+    <div class="info-row"><span class="info-label">Working Dir:</span><span class="info-value">${data.working_directory||'N/A'}</span></div>
+</div>
+
+<div class="restore-box">
+    <h3>🚀 One-Click Restore</h3>
+    <p style="color:#808080;margin-bottom:15px">Copy and run this command in your terminal:</p>
+    <div class="code-block"><code>${data.restore_command}</code></div>
+    <div class="action-buttons">
+        <button class="btn btn-copy" onclick="navigator.clipboard.writeText('${data.restore_command}')">📋 Copy Command</button>
+        <button class="btn btn-copy" onclick="showSSHCommands('${data.host||''}', '${data.port||22}', '${data.username||''}', '${data.working_directory||''}', '${data.last_successful_command||''}')">Show SSH Commands</button>
+    </div>
+</div>
+
+<div style="margin-top:20px">
+    <h3>📋 Manual Commands</h3>
+    <div class="code-block"><strong>Change Directory:</strong><br><code>cd ${data.working_directory||'/'}</code></div>
+    <div class="code-block"><strong>Last Successful Command:</strong><br><code>${data.last_successful_command||'echo "No command saved"'}</code></div>
+</div>
+`;
+    
+    showModal('Restore Session: ' + (data.session_name||sessionId), instructions);
+}
+
+function showSSHCommands(host, port, user, workdir, cmd) {
+    const sshCmd = user ? `ssh ${user}@${host} -p ${port}` : `ssh ${host} -p ${port}`;
+    const fullCmd = workdir ? `${sshCmd} "cd ${workdir} && ${cmd}"` : sshCmd;
+    
+    const html = `
+<div class="code-block"><strong>Direct SSH Connection:</strong><br><code>${fullCmd}</code></div>
+<div class="action-buttons">
+    <button class="btn btn-copy" onclick="navigator.clipboard.writeText('${fullCmd}')">📋 Copy SSH Command</button>
+</div>
+`;
+    document.querySelector('.restore-box').insertAdjacentHTML('afterend', html);
+}
+
+async function showSessionDetails(sessionId) {
+    const res = await fetch(`/api/session/${sessionId}`);
+    const s = await res.json();
+    
+    if (!s.session_id) {
+        alert('Session not found');
+        return;
+    }
+    
+    const envHtml = Object.entries(s.environment||{}).map(([k,v]) => 
+        `<div class="env-item"><div class="env-name">${k}</div><div class="env-value">${v}</div></div>`
+    ).join('') || '<p style="color:#808080">No environment variables saved</p>';
+    
+    const cmdHtml = (s.commands||[]).slice(0,30).map(c => 
+        `<div class="command-item">
+            <span class="timestamp">${c.timestamp||'-'}</span>
+            <span class="working-dir">${c.working_directory||'N/A'}</span>
+            <div style="font-family:monospace;margin-top:5px">${c.command||'-'}</div>
+        </div>`
+    ).join('') || '<p style="color:#808080">No commands recorded</p>';
+    
+    const html = `
+<div class="session-info">
+    <div class="info-row"><span class="info-label">Session ID:</span><span class="info-value">${s.session_id}</span></div>
+    <div class="info-row"><span class="info-label">Name:</span><span class="info-value">${s.session_name||'Unnamed'}</span></div>
+    <div class="info-row"><span class="info-label">Host:</span><span class="info-value">${s.host||'Local'}:${s.port||'-'}</span></div>
+    <div class="info-row"><span class="info-label">Type:</span><span class="info-value">${(s.connection_type||'ssh').toUpperCase()}</span></div>
+    <div class="info-row"><span class="info-label">Username:</span><span class="info-value">${s.username||'N/A'}</span></div>
+    <div class="info-row"><span class="info-label">Working Directory:</span><span class="info-value">${s.working_directory||'N/A'}</span></div>
+    <div class="info-row"><span class="info-label">Last Command:</span><span class="info-value">${s.last_command||'None'}</span></div>
+    <div class="info-row"><span class="info-label">Last Successful:</span><span class="info-value" style="color:#4ec9b0">${s.last_successful_command||'None'}</span></div>
+    <div class="info-row"><span class="info-label">Created:</span><span class="info-value">${s.created_at||'-'}</span></div>
+    <div class="info-row"><span class="info-label">Last Active:</span><span class="info-value">${s.last_active_at||'-'}</span></div>
+</div>
+
+<h3>🔧 Environment Variables</h3>
+<div class="env-grid">${envHtml}</div>
+
+<h3 style="margin-top:20px">📜 Recent Commands</h3>
+<div class="command-list">${cmdHtml}</div>
+`;
+    
+    showModal('Session Details: ' + (s.session_name||sessionId), html);
+}
+
+function showModal(title, content) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = content;
+    document.getElementById('session-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('session-modal').classList.remove('active');
+}
+
+document.getElementById('session-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+
+loadStats();
 loadSessions();
-</script></body></html>
+setInterval(loadStats, 30000);
+</script>
+</body></html>
 ''')
 
 if __name__ == "__main__":
     DB_PATH.mkdir(parents=True, exist_ok=True)
+    print("Starting WindTerm Session Manager Web UI...")
+    print("Access: http://localhost:8767")
     app.run(host="127.0.0.1", port=8767, debug=False)

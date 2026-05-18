@@ -7,20 +7,28 @@
 #include <QMap>
 #include <QString>
 #include <QDateTime>
+#include <QJsonObject>
 
-struct SessionInfo {
+enum class ConnectionType { SSH = 0, Telnet, Rlogin, Serial, TCP, UDP, LocalShell };
+
+struct SessionState {
     int id;
     QString sessionId;
+    QString sessionName;
+    ConnectionType connectionType;
     QString host;
     int port;
-    QString protocol;
+    QString username;
     QString workingDirectory;
     QString lastCommand;
     QString lastSuccessfulCommand;
+    QStringList commandHistory;
     QMap<QString, QString> environment;
+    QString shellType;
+    qint64 processId;
     QDateTime createdAt;
     QDateTime lastActiveAt;
-    qint64 processId;
+    QString autoRestoreCommand;
 };
 
 class SessionManager : public QObject {
@@ -30,21 +38,32 @@ public:
     bool initialize();
     void shutdown();
     
-    void saveSession(const QString& sessionId, const QString& host, int port, const QString& protocol);
-    void updateSession(const QString& sessionId, const QString& workingDir, const QString& command);
+    QString createSession(const QString& name, ConnectionType type, const QString& host, int port, const QString& username);
+    void updateSessionState(const QString& sessionId, const QString& workingDir, const QString& lastCmd);
     void markCommandSuccess(const QString& sessionId, const QString& command);
+    void appendCommand(const QString& sessionId, const QString& command);
     void setEnvironment(const QString& sessionId, const QMap<QString, QString>& env);
+    void setShellType(const QString& sessionId, const QString& shell);
     void closeSession(const QString& sessionId);
     
-    QList<SessionInfo> getAllSessions();
-    SessionInfo getSession(const QString& sessionId);
-    QList<SessionInfo> getRecentSessions(int limit = 20);
+    QList<SessionState> getAllSessions();
+    SessionState getSession(const QString& sessionId);
+    QList<SessionState> getRecentSessions(int limit = 20);
+    QList<SessionState> getActiveSessions();
     void deleteSession(const QString& sessionId);
     void cleanupOldSessions(int days = 7);
+    
+    QJsonObject getRestoreData(const QString& sessionId);
+    QString generateRestoreScript(const QString& sessionId);
+    
+signals:
+    void sessionReadyToRestore(const QString& sessionId, const QString& workingDir, const QString& command);
     
 private:
     void createTables();
     QString generateSessionId();
+    QString connectionTypeToString(ConnectionType type);
+    ConnectionType stringToConnectionType(const QString& str);
     
     QSqlDatabase m_db;
 };
