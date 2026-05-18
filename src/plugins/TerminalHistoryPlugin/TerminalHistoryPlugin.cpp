@@ -7,6 +7,8 @@
 #include <QtDebug>
 #include <QFile>
 #include <QProcess>
+#include <QClipboard>
+#include <QApplication>
 
 TerminalHistoryPlugin::TerminalHistoryPlugin(QObject* parent) 
     : TerminalEventHook(parent), m_currentIndex(-1) {}
@@ -16,7 +18,7 @@ TerminalHistoryPlugin::~TerminalHistoryPlugin() { shutdown(); }
 bool TerminalHistoryPlugin::initialize() {
     initDatabase();
     if (!m_sessionManager.initialize()) return false;
-    return m_db.isValid() && m_sessionManager.initialize();
+    return m_db.isValid();
 }
 
 void TerminalHistoryPlugin::shutdown() {
@@ -38,6 +40,16 @@ void TerminalHistoryPlugin::initDatabase() {
 
 bool TerminalHistoryPlugin::interceptKeyEvent(int key, int modifiers, const QString& text) {
     Q_UNUSED(text);
+    // Ctrl+Shift+R: 恢复上次会话命令
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_R) {
+        restoreLastSession();
+        return true;
+    }
+    // Ctrl+Shift+L: 填充最后一次成功命令
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_L) {
+        fillLastCommand();
+        return true;
+    }
     if (modifiers != Qt::NoModifier) return false;
     if (key == Qt::Key_Up) {
         QString cmd = queryHistoryByOffset(1);
@@ -52,8 +64,9 @@ bool TerminalHistoryPlugin::interceptKeyEvent(int key, int modifiers, const QStr
 void TerminalHistoryPlugin::onCommandExecuted(const QString& command) {
     if (!command.trimmed().isEmpty()) {
         saveCommand(command);
+        m_sessionManager.appendCommand(m_currentSessionId, command);
         if (!m_currentSessionId.isEmpty()) {
-            m_sessionManager.updateSession(m_currentSessionId, m_currentWorkingDir, command);
+            m_sessionManager.updateSessionState(m_currentSessionId, m_currentWorkingDir, command);
         }
     }
 }
@@ -61,7 +74,7 @@ void TerminalHistoryPlugin::onCommandExecuted(const QString& command) {
 void TerminalHistoryPlugin::onWorkingDirectoryChanged(const QString& path) {
     m_currentWorkingDir = path;
     if (!m_currentSessionId.isEmpty()) {
-        m_sessionManager.updateSession(m_currentSessionId, path, QString());
+        m_sessionManager.updateSessionState(m_currentSessionId, path, QString());
     }
 }
 
@@ -71,7 +84,7 @@ QString TerminalHistoryPlugin::getCommandHistory(int offset) {
 
 void TerminalHistoryPlugin::onSessionStart(const QString& sessionId, const QString& host, int port, const QString& protocol) {
     m_currentSessionId = sessionId;
-    m_sessionManager.saveSession(sessionId, host, port, protocol);
+    m_sessionManager.createSession(sessionId, ConnectionType::SSH, host, port, QString());
     captureEnvironment(sessionId);
 }
 
@@ -91,6 +104,89 @@ void TerminalHistoryPlugin::captureEnvironment(const QString& sessionId) {
     }
     m_sessionManager.setEnvironment(sessionId, envMap);
     m_lastEnvironment = env;
+}
+
+void TerminalHistoryPlugin::sendTextToInput(const QString& text) {
+    injectTextToTerminal(text);
+}
+
+void TerminalHistoryPlugin::clearInput() {
+    injectTextToTerminal("\x08"); // Backspace 清空
+}
+
+void TerminalHistoryPlugin::injectTextToTerminal(const QString& text) {
+    m_currentInput = text;
+    emit textInputReceived(text);
+    qDebug() << "[TerminalHistoryPlugin] Inject text:" << text;
+}
+
+void TerminalHistoryPlugin::restoreLastSession() {
+    QList<SessionState> sessions = m_sessionManager.getRecentSessions(1);
+    if (sessions.isEmpty()) {
+        qDebug() << "[TerminalHistoryPlugin] No sessions to restore";
+        return;
+    }
+    
+    SessionState lastSession = sessions.first();
+    QString restoreText;
+    
+    // 构建恢复命令
+    if (!lastSession.workingDirectory.isEmpty()) {
+        restoreText = QString("cd \"%1\"").arg(lastSession.workingDirectory);
+    }
+    
+    if (!lastSession.lastSuccessfulCommand.isEmpty()) {
+        if (!restoreText.isEmpty()) restoreText += " && ";
+        restoreText += lastSession.lastSuccessfulCommand;
+    }
+    
+    if (restoreText.isEmpty()) {
+        qDebug() << "[TerminalHistoryPlugin] Nothing to restore";
+        return;
+    }
+    
+    // 发送到终端输入行（不执行）
+    injectTextToTerminal(restoreText);
+    qDebug() << "[TerminalHistoryPlugin] Restored session:" << lastSession.sessionId << "Command:" << restoreText;
+}
+
+void TerminalHistoryPlugin::restoreSessionById(const QString& sessionId) {
+    SessionState state = m_sessionManager.getSession(sessionId);
+    if (state.sessionId.isEmpty()) {
+        qDebug() << "[TerminalHistoryPlugin] Session not found:" << sessionId;
+        return;
+    }
+    
+    QString restoreText;
+    if (!state.workingDirectory.isEmpty()) {
+        restoreText = QString("cd \"%1\"").arg(state.workingDirectory);
+    }
+    
+    if (!state.lastSuccessfulCommand.isEmpty()) {
+        if (!restoreText.isEmpty()) restoreText += " && ";
+        restoreText += state.lastSuccessfulCommand;
+    }
+    
+    if (restoreText.isEmpty()) return;
+    
+    injectTextToTerminal(restoreText);
+    qDebug() << "[TerminalHistoryPlugin] Restored session by ID:" << sessionId;
+}
+
+void TerminalHistoryPlugin::fillLastCommand() {
+    if (m_currentSessionId.isEmpty()) {
+        qDebug() << "[TerminalHistoryPlugin] No active session";
+        return;
+    }
+    
+    QString cmd = m_sessionManager.getSession(m_currentSessionId).lastSuccessfulCommand;
+    if (cmd.isEmpty()) {
+        qDebug() << "[TerminalHistoryPlugin] No successful command in current session";
+        return;
+    }
+    
+    injectTextToTerminal(cmd);
+    qDebug() << "[TerminalHistoryPlugin] Filled last command:" << cmd;
 }
 
 void TerminalHistoryPlugin::saveCommand(const QString& command) {

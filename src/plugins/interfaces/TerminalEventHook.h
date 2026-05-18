@@ -18,8 +18,16 @@ public:
     virtual void onWorkingDirectoryChanged(const QString& path) { Q_UNUSED(path); }
     virtual QString getCommandHistory(int offset) { Q_UNUSED(offset); return QString(); }
     
+    // 发送文本到终端输入行（不执行）
+    virtual void sendTextToInput(const QString& text) { Q_UNUSED(text); }
+    // 清空终端输入行
+    virtual void clearInput() {}
+    // 获取当前终端输入内容
+    virtual QString getCurrentInput() { return QString(); }
+    
 signals:
     void commandReceived(const QString& command);
+    void textInputReceived(const QString& text);
 };
 
 #endif

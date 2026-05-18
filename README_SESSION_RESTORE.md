@@ -126,3 +126,62 @@ Web UI 会自动清理 7 天前的非活跃会话。
 ```sql
 DELETE FROM sessions WHERE last_active_at < datetime('now', '-7 days') AND is_active = 0;
 ```
+
+## 自动填充命令（不执行）
+
+### 方式 1: 快捷键（推荐）
+
+在 WindTerm 终端窗口中：
+
+| 快捷键 | 功能 |
+|--------|------|
+| **Ctrl+Shift+R** | 恢复上次会话的命令（cd + 最后成功命令） |
+| **Ctrl+Shift+L** | 填充最后一次成功执行的命令 |
+
+**重要**: 命令会自动填充到终端输入行，但**不会自动执行**，需要用户手动按回车确认。
+
+### 方式 2: Web UI
+
+1. 访问 http://localhost:8767
+2. 找到目标会话
+3. 点击 **📝 Fill** 按钮
+4. 查看将填充的命令
+5. 在终端中手动输入或使用快捷键
+
+### 填充内容
+
+- **Ctrl+Shift+R**: `cd /工作目录 && 最后成功的命令`
+- **Ctrl+Shift+L**: `最后成功的命令`
+
+### 示例
+
+假设上次会话在 `/home/user/project` 目录执行了 `docker-compose up -d`：
+
+```bash
+# 按 Ctrl+Shift+R 后，终端输入行自动显示：
+cd "/home/user/project" && docker-compose up -d
+
+# 用户确认无误后，按 Enter 执行
+```
+
+### 插件 API
+
+如果你开发 WindTerm 插件，可以使用：
+
+```cpp
+// 发送文本到终端输入行（不执行）
+plugin->sendTextToInput("cd /path && command");
+
+// 清空输入行
+plugin->clearInput();
+
+// 获取当前输入内容
+QString current = plugin->getCurrentInput();
+```
+
+### 优势
+
+✅ **用户控制**: 用户可以查看命令后再决定是否执行  
+✅ **安全性**: 避免自动执行可能的危险命令  
+✅ **可修改**: 填充后可以编辑命令再执行  
+✅ **便捷**: 一键恢复，无需手动输入
