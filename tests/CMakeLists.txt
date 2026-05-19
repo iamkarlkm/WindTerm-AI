@@ -70,6 +70,7 @@ target_link_libraries(performance_benchmark PRIVATE
     Qt5::Core
     Qt5::Gui
     WindTermRenderer
+    WindTermTerminal
 )
 
 add_test(NAME PerformanceBenchmark COMMAND performance_benchmark)

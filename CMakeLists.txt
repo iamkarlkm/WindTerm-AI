@@ -116,6 +116,35 @@ if(BUILD_BUFFER)
     )
 endif()
 
+if(BUILD_RENDERER)
+    message(STATUS "Building Terminal Module")
+    
+    add_library(WindTermTerminal STATIC
+        src/Terminal/AnsiParser.cpp
+        src/Terminal/AnsiParser.h
+        src/Terminal/TerminalState.cpp
+        src/Terminal/TerminalState.h
+        src/Terminal/PtyManager.cpp
+        src/Terminal/PtyManager.h
+        src/Terminal/TerminalSession.cpp
+        src/Terminal/TerminalSession.h
+    )
+    
+    target_include_directories(WindTermTerminal PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+    
+    target_link_libraries(WindTermTerminal PUBLIC
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+    )
+    
+    target_compile_definitions(WindTermTerminal PRIVATE
+        QT_DEPRECATED_WARNINGS
+    )
+endif()
+
 if(BUILD_WIDGET)
     message(STATUS "Building Terminal Widget")
     
@@ -133,6 +162,7 @@ if(BUILD_WIDGET)
     target_link_libraries(WindTermWidget PUBLIC
         WindTermRenderer
         WindTermBuffer
+        WindTermTerminal
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
