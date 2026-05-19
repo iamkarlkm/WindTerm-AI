@@ -511,8 +511,8 @@ QString TerminalPane::selectedText() const {
     int endCol = qMax(m_selection.startCol, m_selection.endCol);
     
     QString result;
-    for (int row = startRow; row <= endRow && row < m_session->rows(); row++) {
-        const QVector<StyledChar>& line = m_session->line(row);
+    for (int row = startRow; row <= endRow && (m_scrollOffset + row) < m_session->rows(); row++) {
+        const QVector<StyledChar>& line = m_session->line(m_scrollOffset + row);
         int colStart = (row == startRow) ? startCol : 0;
         int colEnd = (row == endRow) ? endCol : qMin(m_cols, line.size());
         
