@@ -185,3 +185,79 @@ QString current = plugin->getCurrentInput();
 ✅ **安全性**: 避免自动执行可能的危险命令  
 ✅ **可修改**: 填充后可以编辑命令再执行  
 ✅ **便捷**: 一键恢复，无需手动输入
+
+## 多会话恢复模式
+
+### 恢复单个会话
+
+```bash
+# 在新标签页恢复（默认）
+python3 session_restore.py restore <session_id>
+
+# 在当前终端恢复（替换当前会话）
+python3 session_restore.py restore <session_id> --mode current
+
+# 在新窗口恢复
+python3 session_restore.py restore <session_id> --mode window
+```
+
+### 恢复多个会话
+
+```bash
+# 恢复最近 10 个会话到独立标签页
+python3 session_restore.py restore-tabs --limit 10
+
+# 恢复最近 5 个会话
+python3 session_restore.py restore-tabs --limit 5
+```
+
+### 生成批量恢复脚本
+
+```bash
+# 生成恢复最近会话的脚本
+python3 session_restore.py batch --limit 5 > restore_sessions.sh
+chmod +x restore_sessions.sh
+./restore_sessions.sh
+```
+
+### 恢复模式对比
+
+| 模式 | 行为 | 适用场景 |
+|------|------|----------|
+| **tab** (默认) | 每个会话一个新标签页 | 同时管理多个会话 |
+| **window** | 每个会话一个新窗口 | 多显示器或需要独立窗口 |
+| **current** | 在当前终端执行 | 快速切换，不占用额外标签 |
+
+### 示例
+
+```bash
+# 查看会话列表
+$ python3 session_restore.py list
+
+# 恢复最近 5 个会话到独立标签页
+$ python3 session_restore.py restore-tabs --limit 5
+🚀 Restoring 5 sessions to separate tabs...
+
+[1/5] Restoring production-server...
+✅ Session opened in new tab
+[2/5] Restoring db-server...
+✅ Session opened in new tab
+...
+
+✅ All 5 sessions restored!
+
+# 在当前终端恢复指定会话
+$ python3 session_restore.py restore abc123... --mode current
+🔌 Connecting to SSH: user@192.168.1.100:22
+# 直接连接，不打开新标签
+```
+
+### tmux/screen 支持
+
+如果使用 tmux，新会话会在新 pane 中打开：
+
+```bash
+# tmux 环境自动使用 split-window
+python3 session_restore.py restore-tabs --limit 3
+# 会在 3 个垂直分割的 pane 中打开会话
+```
