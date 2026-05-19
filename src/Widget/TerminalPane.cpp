@@ -149,6 +149,7 @@ void TerminalPane::paintGL() {
     
     m_renderer->clear();
     renderContent();
+    renderSelection();
     
     if (m_isActive && m_cursorVisible && m_cursorBlinkState) {
         renderCursor();
@@ -162,27 +163,95 @@ void TerminalPane::paintGL() {
 void TerminalPane::renderContent() {
     if (!m_session) return;
     
+    QColor defaultBg = m_renderer->backgroundColor();
+    QColor defaultFg = m_renderer->foregroundColor();
+    
     int startRow = m_scrollOffset;
     for (int row = 0; row < m_rows && (startRow + row) < m_session->rows(); row++) {
         const QVector<StyledChar>& line = m_session->line(startRow + row);
-        QString lineText;
         for (int col = 0; col < line.size() && col < m_cols; col++) {
-            lineText.append(line[col].character);
-        }
-        if (!lineText.isEmpty()) {
-            m_renderer->appendText(lineText, 0, row * m_charHeight);
+            const StyledChar& sc = line[col];
+            
+            int x = col * m_charWidth;
+            int y = row * m_charHeight;
+            
+            QColor fg = sc.foreground.isValid() ? sc.foreground : defaultFg;
+            QColor bg = sc.background.isValid() ? sc.background : defaultBg;
+            
+            if (sc.reverse) {
+                qSwap(fg, bg);
+            }
+            
+            if (bg != defaultBg) {
+                m_renderer->appendBackground(x, y, m_charWidth, m_charHeight, bg);
+            }
+            
+            QString ch(sc.character);
+            if (sc.hidden) {
+                ch = QStringLiteral(" ");
+            }
+            
+            if (!ch.isEmpty() && ch != QStringLiteral(" ")) {
+                m_renderer->appendText(ch, x, y, fg);
+            }
+            
+            if (sc.underline) {
+                m_renderer->appendBackground(x, y + m_charHeight - 1, m_charWidth, 1, fg);
+            }
+            
+            if (sc.strikeThrough) {
+                m_renderer->appendBackground(x, y + m_charHeight / 2, m_charWidth, 1, fg);
+            }
         }
     }
 }
 
 void TerminalPane::renderCursor() {
+    if (!m_session) return;
+    
     int x = m_cursor.col * m_charWidth;
     int y = m_cursor.row * m_charHeight;
-    m_renderer->appendText(QChar(0x2588), x, y);
+    
+    const QVector<StyledChar>& line = m_session->line(m_cursor.row + m_scrollOffset);
+    if (line.size() > m_cursor.col) {
+        const StyledChar& sc = line[m_cursor.col];
+        QColor cursorColor = sc.reverse ? sc.foreground : sc.background;
+        if (!cursorColor.isValid()) {
+            cursorColor = m_renderer->foregroundColor();
+        }
+        m_renderer->appendBackground(x, y, m_charWidth, m_charHeight, cursorColor);
+        
+        QString ch(sc.character);
+        if (!ch.isEmpty() && ch != QStringLiteral(" ")) {
+            QColor chColor = sc.reverse ? sc.background : sc.foreground;
+            if (!chColor.isValid()) {
+                chColor = m_renderer->backgroundColor();
+            }
+            m_renderer->appendText(ch, x, y, chColor);
+        }
+    }
 }
 
 void TerminalPane::renderSelection() {
     if (!m_selection.active) return;
+    
+    QColor selectionColor(100, 150, 255, 100);
+    
+    int startRow = qMin(m_selection.startRow, m_selection.endRow);
+    int endRow = qMax(m_selection.startRow, m_selection.endRow);
+    int startCol = qMin(m_selection.startCol, m_selection.endCol);
+    int endCol = qMax(m_selection.startCol, m_selection.endCol);
+    
+    for (int row = startRow; row <= endRow && row < m_rows; row++) {
+        int colStart = (row == startRow) ? startCol : 0;
+        int colEnd = (row == endRow) ? endCol : m_cols;
+        
+        for (int col = colStart; col <= colEnd && col < m_cols; col++) {
+            int x = col * m_charWidth;
+            int y = row * m_charHeight;
+            m_renderer->appendBackground(x, y, m_charWidth, m_charHeight, selectionColor);
+        }
+    }
 }
 
 void TerminalPane::renderBorder() {
@@ -191,23 +260,19 @@ void TerminalPane::renderBorder() {
     QColor borderColor = m_isActive ? m_activeBorderColor : m_inactiveBorderColor;
     int borderWidth = 2;
     
-    QPainter painter(this);
-    painter.setPen(borderColor);
-    painter.setBrush(Qt::NoBrush);
-    
     QRect rect = this->rect();
     switch (m_border) {
         case PaneBorder::Top:
-            painter.drawRect(0, 0, rect.width(), borderWidth);
+            m_renderer->appendBackground(0, 0, rect.width(), borderWidth, borderColor);
             break;
         case PaneBorder::Right:
-            painter.drawRect(rect.width() - borderWidth, 0, borderWidth, rect.height());
+            m_renderer->appendBackground(rect.width() - borderWidth, 0, borderWidth, rect.height(), borderColor);
             break;
         case PaneBorder::Bottom:
-            painter.drawRect(0, rect.height() - borderWidth, rect.width(), borderWidth);
+            m_renderer->appendBackground(0, rect.height() - borderWidth, rect.width(), borderWidth, borderColor);
             break;
         case PaneBorder::Left:
-            painter.drawRect(0, 0, borderWidth, rect.height());
+            m_renderer->appendBackground(0, 0, borderWidth, rect.height(), borderColor);
             break;
         default:
             break;

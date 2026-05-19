@@ -152,6 +152,10 @@ void GPURenderer::setForegroundColor(const QColor& color) {
 }
 
 void GPURenderer::appendText(const QString& text, int x, int y) {
+    appendText(text, x, y, m_foregroundColor);
+}
+
+void GPURenderer::appendText(const QString& text, int x, int y, const QColor& fgColor) {
     QFontDatabase fontDb;
     QFont font(m_fontFamily, m_fontSize);
     
@@ -186,9 +190,9 @@ void GPURenderer::appendText(const QString& text, int x, int y) {
         if (glyph) {
             VertexData vertex[6];
             
-            float r = m_foregroundColor.redF();
-            float g = m_foregroundColor.greenF();
-            float b = m_foregroundColor.blueF();
+            float r = fgColor.redF();
+            float g = fgColor.greenF();
+            float b = fgColor.blueF();
             
             vertex[0] = {{xPos, yPos + glyph->height}, 
                         {glyph->texX, glyph->texY + glyph->texHeight},
@@ -215,6 +219,33 @@ void GPURenderer::appendText(const QString& text, int x, int y) {
             xPos += glyph->width;
         }
     }
+}
+
+void GPURenderer::appendBackground(int x, int y, int width, int height, const QColor& color) {
+    VertexData vertex[6];
+    
+    float r = color.redF();
+    float g = color.greenF();
+    float b = color.blueF();
+    
+    float left = static_cast<float>(x);
+    float right = static_cast<float>(x + width);
+    float top = static_cast<float>(y);
+    float bottom = static_cast<float>(y + height);
+    
+    vertex[0] = {{left, bottom}, {0.0f, 0.0f}, {r, g, b, 1.0f}};
+    vertex[1] = {{right, bottom}, {0.0f, 0.0f}, {r, g, b, 1.0f}};
+    vertex[2] = {{left, top}, {0.0f, 0.0f}, {r, g, b, 1.0f}};
+    vertex[3] = vertex[2];
+    vertex[4] = vertex[1];
+    vertex[5] = {{right, top}, {0.0f, 0.0f}, {r, g, b, 1.0f}};
+    
+    m_vertices.append(vertex[0]);
+    m_vertices.append(vertex[1]);
+    m_vertices.append(vertex[2]);
+    m_vertices.append(vertex[3]);
+    m_vertices.append(vertex[4]);
+    m_vertices.append(vertex[5]);
 }
 
 void GPURenderer::clear() {

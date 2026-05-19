@@ -16,9 +16,12 @@ struct StyledChar {
     bool italic;
     bool underline;
     bool reverse;
+    bool hidden;
+    bool strikeThrough;
     
     StyledChar() 
-        : character(' '), bold(false), italic(false), underline(false), reverse(false) {}
+        : character(' '), bold(false), italic(false), underline(false), reverse(false),
+          hidden(false), strikeThrough(false) {}
     
     StyledChar(QChar ch, const TextStyle& style)
         : character(ch),
@@ -27,7 +30,9 @@ struct StyledChar {
           bold(style.bold),
           italic(style.italic),
           underline(style.underline),
-          reverse(style.reverse) {}
+          reverse(style.reverse),
+          hidden(style.hidden),
+          strikeThrough(style.strikeThrough) {}
 };
 
 class TerminalSession : public QObject {

@@ -81,7 +81,12 @@ public:
     void setBackgroundColor(const QColor& color);
     void setForegroundColor(const QColor& color);
     
+    const QColor& backgroundColor() const { return m_backgroundColor; }
+    const QColor& foregroundColor() const { return m_foregroundColor; }
+    
     void appendText(const QString& text, int x, int y);
+    void appendText(const QString& text, int x, int y, const QColor& fgColor);
+    void appendBackground(int x, int y, int width, int height, const QColor& color);
     void clear();
     
 protected:

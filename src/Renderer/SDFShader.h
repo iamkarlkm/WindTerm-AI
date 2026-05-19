@@ -34,6 +34,11 @@ const char* sdfFragmentShader = R"(
     uniform float uSDFThreshold;
     
     void main() {
+        if (TexCoord.x < 0.001 && TexCoord.y < 0.001) {
+            FragColor = Color;
+            return;
+        }
+        
         float distance = texture(uTexture, TexCoord).a;
         
         float smoothing = fwidth(distance);
