@@ -140,6 +140,11 @@ void TerminalState::clear() {
     emit screenUpdated();
 }
 
+void TerminalState::clearHistory() {
+    clear();
+    clearScrollback();
+}
+
 void TerminalState::reset() {
     clear();
     m_cursor.visible = true;

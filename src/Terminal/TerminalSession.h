@@ -55,6 +55,7 @@ public:
     
     void copyToClipboard() const;
     void pasteFromClipboard();
+    void clearBuffer();
     
 signals:
     void dataAvailable(const QByteArray& data);

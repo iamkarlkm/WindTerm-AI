@@ -153,6 +153,10 @@ if(BUILD_WIDGET)
         src/Widget/TerminalWidget.h
         src/Widget/TerminalMainWindow.cpp
         src/Widget/TerminalMainWindow.h
+        src/Widget/TerminalPane.cpp
+        src/Widget/TerminalPane.h
+        src/Widget/SplitterContainer.cpp
+        src/Widget/SplitterContainer.h
     )
     
     target_include_directories(WindTermWidget PUBLIC

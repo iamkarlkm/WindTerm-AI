@@ -61,6 +61,7 @@ public:
     
     void copyToClipboard() const;
     void clear();
+    void clearHistory();
     void reset();
     
     int scrollbackSize() const { return m_scrollbackBuffer.size(); }

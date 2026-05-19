@@ -133,3 +133,8 @@ QVector<StyledChar> TerminalSession::convertLine(const QVector<TerminalCell>& ce
     
     return styled;
 }
+
+void TerminalSession::clearBuffer() {
+    m_state->clearHistory();
+    emit screenUpdated();
+}
