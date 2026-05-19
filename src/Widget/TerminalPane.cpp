@@ -4,6 +4,7 @@
 #include <QFontMetrics>
 #include <QPainter>
 #include <QDir>
+#include <QDateTime>
 
 TerminalPane::TerminalPane(QWidget* parent)
     : QOpenGLWidget(parent), m_session(nullptr), m_renderer(nullptr),
@@ -306,19 +307,15 @@ void TerminalPane::keyPressEvent(QKeyEvent* event) {
     
     if (mods & Qt::ControlModifier && mods & Qt::ShiftModifier) {
         if (event->key() == Qt::Key_C) {
-            m_session->copyToClipboard();
+            copySelectedText();
             return;
         }
         if (event->key() == Qt::Key_V) {
-            m_session->pasteFromClipboard();
+            pasteFromClipboard();
             return;
         }
         if (event->key() == Qt::Key_H) {
             emit splitRequested(Qt::Horizontal);
-            return;
-        }
-        if (event->key() == Qt::Key_V) {
-            emit splitRequested(Qt::Vertical);
             return;
         }
     }
@@ -368,13 +365,33 @@ void TerminalPane::keyPressEvent(QKeyEvent* event) {
 
 void TerminalPane::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
-        m_selection.active = true;
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        if (currentTime - m_lastClickTime < 500) {
+            m_clickCount++;
+        } else {
+            m_clickCount = 1;
+        }
+        m_lastClickTime = currentTime;
+        
         QPoint charPos = pixelToChar(event->pos());
-        m_selection.startRow = charPos.y();
-        m_selection.startCol = charPos.x();
-        m_selection.endRow = charPos.y();
-        m_selection.endCol = charPos.x();
-        m_mouseSelecting = true;
+        
+        if (m_clickCount >= 3) {
+            selectLine(charPos.y());
+            m_selection.active = true;
+            m_mouseSelecting = false;
+        } else if (m_clickCount == 2) {
+            selectWord(charPos.x(), charPos.y());
+            m_selection.active = true;
+            m_mouseSelecting = true;
+        } else {
+            m_selection.startRow = charPos.y();
+            m_selection.startCol = charPos.x();
+            m_selection.endRow = charPos.y();
+            m_selection.endCol = charPos.x();
+            m_selection.active = true;
+            m_mouseSelecting = true;
+        }
+        
         m_lastMousePos = event->pos();
         emit focusRequested();
         update();
@@ -384,14 +401,17 @@ void TerminalPane::mousePressEvent(QMouseEvent* event) {
 void TerminalPane::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton && m_mouseSelecting) {
         m_mouseSelecting = false;
+        if (m_selection.active && hasValidSelection()) {
+            copySelectedText();
+        }
     }
 }
 
 void TerminalPane::mouseMoveEvent(QMouseEvent* event) {
     if (m_mouseSelecting) {
         QPoint charPos = pixelToChar(event->pos());
-        m_selection.endRow = charPos.y();
-        m_selection.endCol = charPos.x();
+        m_selection.endRow = qBound(0, charPos.y(), m_rows - 1);
+        m_selection.endCol = qBound(0, charPos.x(), m_cols - 1);
         update();
     }
     m_lastMousePos = event->pos();
@@ -409,22 +429,32 @@ void TerminalPane::contextMenuEvent(QContextMenuEvent* event) {
     
     QAction* copyAction = menu.addAction(QStringLiteral("Copy"));
     copyAction->setShortcut(QKeySequence::Copy);
-    connect(copyAction, &QAction::triggered, m_session, &TerminalSession::copyToClipboard);
+    connect(copyAction, &QAction::triggered, this, &TerminalPane::copySelectedText);
     
     QAction* pasteAction = menu.addAction(QStringLiteral("Paste"));
     pasteAction->setShortcut(QKeySequence::Paste);
-    connect(pasteAction, &QAction::triggered, m_session, &TerminalSession::pasteFromClipboard);
+    connect(pasteAction, &QAction::triggered, this, &TerminalPane::pasteFromClipboard);
+    
+    menu.addSeparator();
+    
+    QAction* selectAllAction = menu.addAction(QStringLiteral("Select All"));
+    connect(selectAllAction, &QAction::triggered, this, [this]() {
+        m_selection.active = true;
+        m_selection.startRow = 0;
+        m_selection.startCol = 0;
+        m_selection.endRow = m_rows - 1;
+        m_selection.endCol = m_cols - 1;
+        update();
+    });
     
     menu.addSeparator();
     
     QAction* splitHAction = menu.addAction(QStringLiteral("Split Horizontal"));
-    splitHAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_H));
     connect(splitHAction, &QAction::triggered, this, [this]() {
         emit splitRequested(Qt::Horizontal);
     });
     
     QAction* splitVAction = menu.addAction(QStringLiteral("Split Vertical"));
-    splitVAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_V));
     connect(splitVAction, &QAction::triggered, this, [this]() {
         emit splitRequested(Qt::Vertical);
     });
@@ -464,4 +494,92 @@ void TerminalPane::onSessionTitleChanged(const QString& title) {
 
 void TerminalPane::onProcessFinished(int exitCode) {
     qDebug() << "[TerminalPane]" << m_paneId << "process finished with code:" << exitCode;
+}
+
+bool TerminalPane::hasValidSelection() const {
+    if (!m_selection.active) return false;
+    return m_selection.startRow != m_selection.endRow || 
+           m_selection.startCol != m_selection.endCol;
+}
+
+QString TerminalPane::selectedText() const {
+    if (!hasValidSelection()) return QString();
+    
+    int startRow = qMin(m_selection.startRow, m_selection.endRow);
+    int endRow = qMax(m_selection.startRow, m_selection.endRow);
+    int startCol = qMin(m_selection.startCol, m_selection.endCol);
+    int endCol = qMax(m_selection.startCol, m_selection.endCol);
+    
+    QString result;
+    for (int row = startRow; row <= endRow && row < m_session->rows(); row++) {
+        const QVector<StyledChar>& line = m_session->line(row);
+        int colStart = (row == startRow) ? startCol : 0;
+        int colEnd = (row == endRow) ? endCol : qMin(m_cols, line.size());
+        
+        for (int col = colStart; col < colEnd && col < line.size(); col++) {
+            result.append(line[col].character);
+        }
+        
+        if (row < endRow) {
+            result.append('\n');
+        }
+    }
+    
+    return result;
+}
+
+void TerminalPane::copySelectedText() {
+    QString text = selectedText();
+    if (!text.isEmpty()) {
+        QClipboard* clipboard = QApplication::clipboard();
+        if (clipboard) {
+            clipboard->setText(text);
+        }
+    }
+}
+
+void TerminalPane::pasteFromClipboard() {
+    QClipboard* clipboard = QApplication::clipboard();
+    if (clipboard && clipboard->text().isEmpty()) {
+        return;
+    }
+    write(clipboard->text().toUtf8());
+}
+
+void TerminalPane::selectWord(int col, int row) {
+    if (!m_session || row < 0 || row >= m_session->rows()) return;
+    
+    const QVector<StyledChar>& line = m_session->line(row);
+    if (col < 0 || col >= line.size()) return;
+    
+    QChar ch = line[col].character;
+    bool isWordChar = !ch.isSpace() && ch != QLatin1Char('\0');
+    
+    int wordStart = col;
+    int wordEnd = col;
+    
+    if (isWordChar) {
+        while (wordStart > 0 && !line[wordStart - 1].character.isSpace()) {
+            wordStart--;
+        }
+        while (wordEnd < line.size() - 1 && !line[wordEnd + 1].character.isSpace()) {
+            wordEnd++;
+        }
+    }
+    
+    m_selection.active = true;
+    m_selection.startRow = row;
+    m_selection.endRow = row;
+    m_selection.startCol = wordStart;
+    m_selection.endCol = wordEnd;
+}
+
+void TerminalPane::selectLine(int row) {
+    if (!m_session || row < 0 || row >= m_session->rows()) return;
+    
+    m_selection.active = true;
+    m_selection.startRow = row;
+    m_selection.endRow = row;
+    m_selection.startCol = 0;
+    m_selection.endCol = m_cols - 1;
 }

@@ -82,6 +82,13 @@ private:
     void updateTerminalSize();
     QPoint pixelToChar(const QPoint& pixel) const;
     
+    bool hasValidSelection() const;
+    QString selectedText() const;
+    void copySelectedText();
+    void pasteFromClipboard();
+    void selectWord(int col, int row);
+    void selectLine(int row);
+    
     TerminalSession* m_session;
     GPURenderer* m_renderer;
     
@@ -114,6 +121,9 @@ private:
     QPoint m_lastMousePos;
     bool m_mouseSelecting = false;
     int m_scrollOffset = 0;
+    
+    qint64 m_lastClickTime = 0;
+    int m_clickCount = 0;
     
     QColor m_activeBorderColor;
     QColor m_inactiveBorderColor;
