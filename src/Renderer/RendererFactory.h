@@ -13,6 +13,7 @@ private:
     static GPURenderer* createMetalRenderer(QObject* parent);
     static GPURenderer* createOpenGLRenderer(QObject* parent);
     static GPURenderer* createDirectX12Renderer(QObject* parent);
+    static GPURenderer* createVulkanRenderer(QObject* parent);
     static GPURenderer* createSoftwareRenderer(QObject* parent);
 };
 

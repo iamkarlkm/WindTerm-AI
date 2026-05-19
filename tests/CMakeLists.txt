@@ -54,3 +54,22 @@ if(BUILD_BUFFER)
         message(STATUS "Qt5Test not found, skipping buffer unit tests")
     endif()
 endif()
+
+# 性能基准测试
+add_executable(performance_benchmark
+    PerformanceBenchmark.cpp
+    PerformanceBenchmark.h
+    BenchmarkMain.cpp
+)
+
+target_include_directories(performance_benchmark PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(performance_benchmark PRIVATE
+    Qt5::Core
+    Qt5::Gui
+    WindTermRenderer
+)
+
+add_test(NAME PerformanceBenchmark COMMAND performance_benchmark)

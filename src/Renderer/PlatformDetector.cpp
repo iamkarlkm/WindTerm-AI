@@ -1,5 +1,6 @@
 #include "PlatformDetector.h"
 #include <QOpenGLContext>
+#include <QLibrary>
 #include <QDebug>
 
 #ifdef Q_OS_MACOS
@@ -81,5 +82,11 @@ bool PlatformDetector::isDirectX12Available() {
 }
 
 bool PlatformDetector::isVulkanAvailable() {
+#ifdef Q_OS_LINUX
+    return QLibrary::resolve("vulkan", "vkEnumerateInstanceExtensionProperties") != nullptr;
+#elif defined(Q_OS_WIN)
+    return QLibrary::resolve("vulkan-1", "vkEnumerateInstanceExtensionProperties") != nullptr;
+#else
     return false;
+#endif
 }

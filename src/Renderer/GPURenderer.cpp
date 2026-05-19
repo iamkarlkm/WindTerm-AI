@@ -1,4 +1,5 @@
 #include "GPURenderer.h"
+#include "SDFGlyphGenerator.h"
 #include <QDebug>
 #include <QFontDatabase>
 #include <QPainter>
@@ -163,16 +164,20 @@ void GPURenderer::appendText(const QString& text, int x, int y) {
         GlyphInfo* glyph = m_glyphAtlas.getGlyph(codepoint, m_fontFamily, m_fontSize);
         
         if (!glyph) {
-            QImage glyphImage(m_fontSize, m_fontSize, QImage::Format_RGBA8888);
+            QImage alphaMask = SDFGlyphGenerator::generateAlphaMask(ch, font, m_fontSize);
+            
+            SDFGlyphGenerator sdfGen(4);
+            QImage sdfImage = sdfGen.generateSDF(alphaMask);
+            
+            QImage glyphImage(sdfImage.size(), QImage::Format_RGBA8888);
             glyphImage.fill(Qt::transparent);
             
-            QPainter painter(&glyphImage);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setFont(font);
-            painter.setPen(QColor(255, 255, 255));
-            painter.drawText(0, 0, m_fontSize, m_fontSize, 
-                           Qt::AlignCenter, QString(ch));
-            painter.end();
+            for (int py = 0; py < sdfImage.height(); py++) {
+                for (int px = 0; px < sdfImage.width(); px++) {
+                    uchar dist = qGray(sdfImage.pixel(px, py));
+                    glyphImage.setPixel(px, py, qRgba(255, 255, 255, dist));
+                }
+            }
             
             m_glyphAtlas.uploadGlyph(codepoint, m_fontFamily, m_fontSize, glyphImage);
             glyph = m_glyphAtlas.getGlyph(codepoint, m_fontFamily, m_fontSize);

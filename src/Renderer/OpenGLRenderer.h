@@ -18,6 +18,7 @@ private:
     int m_texAttr;
     int m_colorAttr;
     int m_textureUniform;
+    int m_sdfThresholdUniform;
 };
 
 #endif
