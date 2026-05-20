@@ -8,6 +8,8 @@
 
 #include "Renderer/RendererFactory.h"
 
+class MemoryFragmentStore;
+
 struct TerminalConfig {
     QString fontFamily = QStringLiteral("Consolas");
     int fontSize = 14;
@@ -43,6 +45,8 @@ public:
     QList<TerminalPane*> allPanes() const;
     SplitterContainer* splitter() { return m_splitter; }
     
+    MemoryFragmentStore* memoryStore() { return m_memoryStore; }
+    
     void copyToClipboard();
     void pasteFromClipboard();
     void selectLine(int row);
@@ -71,6 +75,7 @@ private:
     TerminalConfig m_config;
     SplitterContainer* m_splitter;
     TerminalPane* m_activePane;
+    MemoryFragmentStore* m_memoryStore;
     int m_paneCounter;
 };
 

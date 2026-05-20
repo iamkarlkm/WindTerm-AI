@@ -1,10 +1,16 @@
 #include "TerminalPane.h"
+#include "TerminalWidget.h"
+#include "MemoryViewerDialog.h"
+#include "MemoryEditorDialog.h"
+#include "MemoryFragment/MemoryFragmentStore.h"
+#include "MemoryFragment/MemoryFragment.h"
 #include <QDebug>
 #include <QApplication>
 #include <QFontMetrics>
 #include <QPainter>
 #include <QDir>
 #include <QDateTime>
+#include <QMessageBox>
 
 TerminalPane::TerminalPane(QWidget* parent)
     : QOpenGLWidget(parent), m_session(nullptr), m_renderer(nullptr),
@@ -427,6 +433,16 @@ void TerminalPane::wheelEvent(QWheelEvent* event) {
 void TerminalPane::contextMenuEvent(QContextMenuEvent* event) {
     QMenu menu(this);
     
+    bool hasSelection = hasValidSelection();
+    
+    if (hasSelection) {
+        QAction* saveAsMemoryAction = menu.addAction(QStringLiteral("保存为记忆碎片"));
+        connect(saveAsMemoryAction, &QAction::triggered, this, [this]() {
+            saveSelectionAsMemory();
+        });
+        menu.addSeparator();
+    }
+    
     QAction* copyAction = menu.addAction(QStringLiteral("Copy"));
     copyAction->setShortcut(QKeySequence::Copy);
     connect(copyAction, &QAction::triggered, this, &TerminalPane::copySelectedText);
@@ -446,6 +462,19 @@ void TerminalPane::contextMenuEvent(QContextMenuEvent* event) {
         m_selection.endCol = m_cols - 1;
         update();
     });
+    
+    menu.addSeparator();
+    
+    QAction* pasteAsMemoryAction = menu.addAction(QStringLiteral("剪贴板粘贴为记忆碎片"));
+    connect(pasteAsMemoryAction, &QAction::triggered, this, &TerminalPane::pasteClipboardAsMemory);
+    
+    QAction* newMemoryAction = menu.addAction(QStringLiteral("新增记忆碎片"));
+    connect(newMemoryAction, &QAction::triggered, this, &TerminalPane::createNewMemory);
+    
+    menu.addSeparator();
+    
+    QAction* viewMemoriesAction = menu.addAction(QStringLiteral("查看记忆碎片"));
+    connect(viewMemoriesAction, &QAction::triggered, this, &TerminalPane::openMemoryViewer);
     
     menu.addSeparator();
     
@@ -494,6 +523,99 @@ void TerminalPane::onSessionTitleChanged(const QString& title) {
 
 void TerminalPane::onProcessFinished(int exitCode) {
     qDebug() << "[TerminalPane]" << m_paneId << "process finished with code:" << exitCode;
+}
+
+MemoryFragmentStore* TerminalPane::memoryStore() const {
+    QWidget* p = parentWidget();
+    while (p) {
+        if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+            return widget->memoryStore();
+        }
+        p = p->parentWidget();
+    }
+    return MemoryFragmentStore::instance();
+}
+
+void TerminalPane::saveSelectionAsMemory() {
+    QString text = selectedText();
+    if (text.isEmpty()) return;
+    
+    MemoryFragmentStore* store = memoryStore();
+    if (!store->isInitialized()) {
+        QMessageBox::warning(this, QStringLiteral("保存失败"), QStringLiteral("记忆碎片数据库未初始化。"));
+        return;
+    }
+    
+    MemoryFragmentContext context = MemoryFragmentContext::current();
+    
+    MemoryFragment fragment;
+    fragment.content = text;
+    fragment.sourceType = "selection";
+    fragment.sourceRemark = QStringLiteral("从终端选择保存");
+    fragment.terminalType = context.terminalType;
+    fragment.workingDirectory = context.workingDirectory;
+    fragment.sessionId = context.sessionId;
+    
+    MemoryEditorDialog editor(store, fragment, this);
+    if (editor.exec() == QDialog::Accepted) {
+        QMessageBox::information(this, QStringLiteral("保存成功"), QStringLiteral("记忆碎片已保存。"));
+    }
+}
+
+void TerminalPane::pasteClipboardAsMemory() {
+    QClipboard* clipboard = QApplication::clipboard();
+    if (!clipboard || clipboard->text().isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("剪贴板为空。"));
+        return;
+    }
+    
+    MemoryFragmentStore* store = memoryStore();
+    if (!store->isInitialized()) {
+        QMessageBox::warning(this, QStringLiteral("保存失败"), QStringLiteral("记忆碎片数据库未初始化。"));
+        return;
+    }
+    
+    MemoryFragment fragment;
+    fragment.content = clipboard->text();
+    fragment.sourceType = "clipboard";
+    fragment.sourceRemark = QStringLiteral("从剪贴板粘贴");
+    
+    MemoryEditorDialog editor(store, fragment, this);
+    if (editor.exec() == QDialog::Accepted) {
+        QMessageBox::information(this, QStringLiteral("保存成功"), QStringLiteral("记忆碎片已保存。"));
+    }
+}
+
+void TerminalPane::createNewMemory() {
+    MemoryFragmentStore* store = memoryStore();
+    if (!store->isInitialized()) {
+        QMessageBox::warning(this, QStringLiteral("保存失败"), QStringLiteral("记忆碎片数据库未初始化。"));
+        return;
+    }
+    
+    MemoryFragmentContext context = MemoryFragmentContext::current();
+    
+    MemoryFragment fragment;
+    fragment.sourceType = "manual";
+    fragment.terminalType = context.terminalType;
+    fragment.workingDirectory = context.workingDirectory;
+    fragment.sessionId = context.sessionId;
+    
+    MemoryEditorDialog editor(store, fragment, this);
+    if (editor.exec() == QDialog::Accepted) {
+        QMessageBox::information(this, QStringLiteral("保存成功"), QStringLiteral("记忆碎片已保存。"));
+    }
+}
+
+void TerminalPane::openMemoryViewer() {
+    MemoryFragmentStore* store = memoryStore();
+    if (!store->isInitialized()) {
+        QMessageBox::warning(this, QStringLiteral("查看失败"), QStringLiteral("记忆碎片数据库未初始化。"));
+        return;
+    }
+    
+    MemoryViewerDialog viewer(store, this);
+    viewer.exec();
 }
 
 bool TerminalPane::hasValidSelection() const {

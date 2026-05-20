@@ -12,6 +12,8 @@
 #include "Renderer/GPURenderer.h"
 #include "Renderer/RendererFactory.h"
 
+class MemoryFragmentStore;
+
 enum class PaneBorder {
     None,
     Top,
@@ -88,6 +90,12 @@ private:
     void pasteFromClipboard();
     void selectWord(int col, int row);
     void selectLine(int row);
+    
+    MemoryFragmentStore* memoryStore() const;
+    void saveSelectionAsMemory();
+    void pasteClipboardAsMemory();
+    void createNewMemory();
+    void openMemoryViewer();
     
     TerminalSession* m_session;
     GPURenderer* m_renderer;

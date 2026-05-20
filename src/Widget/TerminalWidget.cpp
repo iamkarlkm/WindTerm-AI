@@ -1,16 +1,17 @@
 #include "TerminalWidget.h"
 #include "TerminalPane.h"
 #include "SplitterContainer.h"
+#include "MemoryFragment/MemoryFragmentStore.h"
 #include <QVBoxLayout>
 #include <QDebug>
 
 TerminalWidget::TerminalWidget(QWidget* parent)
-    : QWidget(parent), m_splitter(nullptr), m_activePane(nullptr), m_paneCounter(0) {
+    : QWidget(parent), m_splitter(nullptr), m_activePane(nullptr), m_memoryStore(nullptr), m_paneCounter(0) {
     initWidget();
 }
 
 TerminalWidget::TerminalWidget(const TerminalConfig& config, QWidget* parent)
-    : QWidget(parent), m_config(config), m_splitter(nullptr), m_activePane(nullptr), m_paneCounter(0) {
+    : QWidget(parent), m_config(config), m_splitter(nullptr), m_activePane(nullptr), m_memoryStore(nullptr), m_paneCounter(0) {
     initWidget();
 }
 
@@ -136,6 +137,11 @@ void TerminalWidget::onPaneFocusRequested() {
 
 void TerminalWidget::initWidget() {
     setFocusPolicy(Qt::StrongFocus);
+    
+    m_memoryStore = MemoryFragmentStore::instance(this);
+    if (!m_memoryStore->isInitialized()) {
+        m_memoryStore->initialize();
+    }
     
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);

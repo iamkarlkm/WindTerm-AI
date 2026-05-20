@@ -24,7 +24,7 @@ option(WITH_DIRECTX "Enable DirectX12 Backend (Windows)" ON)
 option(WITH_VULKAN "Enable Vulkan Backend" OFF)
 
 # 查找依赖
-find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets OpenGL)
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets OpenGL Sql)
 
 if(BUILD_RENDERER)
     message(STATUS "Building GPU Renderer Module")
@@ -145,6 +145,30 @@ if(BUILD_RENDERER)
     )
 endif()
 
+if(BUILD_BUFFER)
+    message(STATUS "Building Memory Fragment Module")
+    
+    add_library(WindTermMemoryFragment STATIC
+        src/MemoryFragment/MemoryFragment.h
+        src/MemoryFragment/MemoryFragmentContext.cpp
+        src/MemoryFragment/MemoryFragmentStore.cpp
+        src/MemoryFragment/MemoryFragmentStore.h
+    )
+    
+    target_include_directories(WindTermMemoryFragment PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+    
+    target_link_libraries(WindTermMemoryFragment PUBLIC
+        Qt5::Core
+        Qt5::Sql
+    )
+    
+    target_compile_definitions(WindTermMemoryFragment PRIVATE
+        QT_DEPRECATED_WARNINGS
+    )
+endif()
+
 if(BUILD_WIDGET)
     message(STATUS "Building Terminal Widget")
     
@@ -157,6 +181,10 @@ if(BUILD_WIDGET)
         src/Widget/TerminalPane.h
         src/Widget/SplitterContainer.cpp
         src/Widget/SplitterContainer.h
+        src/Widget/MemoryViewerDialog.cpp
+        src/Widget/MemoryViewerDialog.h
+        src/Widget/MemoryEditorDialog.cpp
+        src/Widget/MemoryEditorDialog.h
     )
     
     target_include_directories(WindTermWidget PUBLIC
@@ -167,10 +195,12 @@ if(BUILD_WIDGET)
         WindTermRenderer
         WindTermBuffer
         WindTermTerminal
+        WindTermMemoryFragment
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
         Qt5::OpenGL
+        Qt5::Sql
     )
     
     target_compile_definitions(WindTermWidget PRIVATE
