@@ -84,13 +84,13 @@ void GlyphAtlas::uploadGlyph(quint32 codepoint, const QString& fontFamily, int f
 }
 
 GPURenderer::GPURenderer(QObject* parent)
-    : QObject(parent), m_glyphAtlas(), m_vertexBuffer(QOpenGLBuffer::VertexBuffer),
-      m_fontFamily(QStringLiteral("Consolas")), m_fontSize(14),
-      m_backgroundColor(QStringLiteral("#1e1e1e")), m_foregroundColor(QStringLiteral("#d4d4d4")),
-      m_viewportWidth(800), m_viewportHeight(600) {}
+    : QObject(parent), m_glVertexBuffer(nullptr), m_d3d12VertexBuffer(nullptr),
+      m_fontSize(14), m_viewportWidth(0), m_viewportHeight(0) {
+    m_backgroundColor = Qt::black;
+    m_foregroundColor = Qt::white;
+}
 
 GPURenderer::~GPURenderer() {
-    finalize();
 }
 
 bool GPURenderer::initialize() {
@@ -130,9 +130,12 @@ void GPURenderer::render() {
 
 void GPURenderer::finalize() {
     m_glyphAtlas.finalize();
-    m_vertexBuffer.destroy();
-    m_vao.destroy();
-    m_shaderProgram.release();
+    if (m_glVertexBuffer) {
+        m_glVertexBuffer->destroy();
+        delete m_glVertexBuffer;
+        m_glVertexBuffer = nullptr;
+    }
+    m_d3d12VertexBuffer = nullptr;
 }
 
 void GPURenderer::setFontFamily(const QString& family) {

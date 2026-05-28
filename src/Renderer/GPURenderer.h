@@ -96,8 +96,9 @@ protected:
     
     GlyphAtlas m_glyphAtlas;
     QOpenGLShaderProgram m_shaderProgram;
-    QOpenGLBuffer m_vertexBuffer;
+    QOpenGLBuffer* m_glVertexBuffer;
     QOpenGLVertexArrayObject m_vao;
+    void* m_d3d12VertexBuffer;
     
     QVector<VertexData> m_vertices;
     

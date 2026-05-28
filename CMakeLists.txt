@@ -54,6 +54,7 @@ if(BUILD_RENDERER)
         src/Renderer/SDFShader.h
         src/Renderer/DirectX12Renderer.h
         src/Renderer/VulkanRenderer.h
+        src/Renderer/d3dx12_simple.h
         src/Utils/UnicodeUtil.h
     )
     

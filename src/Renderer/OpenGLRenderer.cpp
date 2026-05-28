@@ -31,8 +31,8 @@ void OpenGLRenderer::initBuffers() {
     m_vao.create();
     m_vao.bind();
     
-    m_vertexBuffer.create();
-    m_vertexBuffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+    m_glVertexBuffer->create();
+    m_glVertexBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
     
     qDebug() << "[OpenGLRenderer] Buffers initialized";
 }
@@ -53,8 +53,8 @@ void OpenGLRenderer::renderGlyphs() {
     m_shaderProgram.setUniformValue("uTexture", 0);
     m_shaderProgram.setUniformValue("uSDFThreshold", 0.5f);
     
-    m_vertexBuffer.bind();
-    m_vertexBuffer.allocate(m_vertices.constData(), 
+    m_glVertexBuffer->bind();
+    m_glVertexBuffer->allocate(m_vertices.constData(), 
                            m_vertices.size() * sizeof(VertexData));
     
     int offset = 0;
@@ -78,6 +78,6 @@ void OpenGLRenderer::renderGlyphs() {
     m_shaderProgram.disableAttributeArray(m_texAttr);
     m_shaderProgram.disableAttributeArray(m_colorAttr);
     
-    m_vertexBuffer.release();
+    m_glVertexBuffer->release();
     m_shaderProgram.release();
 }
