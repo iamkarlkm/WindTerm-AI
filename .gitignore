@@ -1,0 +1,23 @@
+# Build directory
+build/
+
+# CMake generated files
+**/CMakeFiles/
+**/cmake_install.cmake
+**/Makefile
+**/CTestTestfile.cmake
+*.so
+*.a
+
+# Qt generated files
+*_autogen/
+*.moc
+
+# IDE files
+.vscode/
+.idea/
+*.pro.user
+
+# OS files
+.DS_Store
+Thumbs.db

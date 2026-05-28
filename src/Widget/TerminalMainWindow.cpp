@@ -1,31 +1,36 @@
 #include "TerminalMainWindow.h"
+#include "TabWidget.h"
 #include "TerminalWidget.h"
+#include "Theme/ThemeManager.h"
 #include <QApplication>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSplitter>
-#include <QTabWidget>
 #include <QDebug>
 #include <QScreen>
+#include <QJsonDocument>
+#include "plugins/PluginManager.h"
+#include "plugins/PluginContext.h"
 
 TerminalMainWindow::TerminalMainWindow(QWidget* parent)
     : QMainWindow(parent), m_activeTerminal(nullptr), m_tabWidget(nullptr),
       m_splitter(nullptr), m_statusLabel(nullptr), m_selectionLabel(nullptr),
       m_scrollLabel(nullptr), m_settings(nullptr), m_fullscreenAction(nullptr),
+      m_pluginManager(nullptr), m_pluginContext(nullptr),
       m_zoomLevel(0), m_isFullscreen(false) {
     
     m_settings = new QSettings(QStringLiteral("WindTerm"), QStringLiteral("Terminal"), this);
-    loadSettings();
     
     setWindowTitle(QStringLiteral("WindTerm Extensions - GPU Accelerated Terminal"));
     setMinimumSize(800, 600);
     
-    m_tabWidget = new QTabWidget(this);
+    m_tabWidget = new TabWidget(this);
     m_tabWidget->setTabsClosable(true);
     m_tabWidget->setMovable(true);
     m_tabWidget->setDocumentMode(true);
-    connect(m_tabWidget, &QTabWidget::tabCloseRequested, this, [this](int index) {
+    
+    connect(m_tabWidget, &TabWidget::tabCloseRequested, this, [this](int index) {
         QWidget* widget = m_tabWidget->widget(index);
         m_tabWidget->removeTab(index);
         widget->deleteLater();
@@ -33,7 +38,8 @@ TerminalMainWindow::TerminalMainWindow(QWidget* parent)
             onNewTab();
         }
     });
-    connect(m_tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
+    
+    connect(m_tabWidget, &TabWidget::currentChanged, this, [this](int index) {
         if (index >= 0) {
             m_activeTerminal = qobject_cast<TerminalWidget*>(m_tabWidget->widget(index));
             if (m_activeTerminal) {
@@ -42,13 +48,19 @@ TerminalMainWindow::TerminalMainWindow(QWidget* parent)
         }
     });
     
+    connect(m_tabWidget, &TabWidget::tabRenameRequested, this, &TerminalMainWindow::onTabRenameRequested);
+    connect(m_tabWidget, &TabWidget::tabCloseOthersRequested, this, &TerminalMainWindow::onTabCloseOthersRequested);
+    connect(m_tabWidget, &TabWidget::tabCloseAllRequested, this, &TerminalMainWindow::onTabCloseAllRequested);
+    
     setCentralWidget(m_tabWidget);
     
     setupMenu();
     setupToolBar();
     setupStatusBar();
     
-    onNewTab();
+    if (!restoreSession()) {
+        onNewTab();
+    }
 }
 
 TerminalMainWindow::~TerminalMainWindow() {
@@ -61,6 +73,8 @@ void TerminalMainWindow::setupMenu() {
     QMenu* fileMenu = menuBar->addMenu(QStringLiteral("&File"));
     fileMenu->addAction(QStringLiteral("&New Tab"), this, &TerminalMainWindow::onNewTab, QKeySequence::New);
     fileMenu->addSeparator();
+    fileMenu->addAction(QStringLiteral("&Import/Export Settings"), this, &TerminalMainWindow::onImportExport);
+    fileMenu->addSeparator();
     fileMenu->addAction(QStringLiteral("E&xit"), this, &QMainWindow::close, QKeySequence::Quit);
     
     QMenu* editMenu = menuBar->addMenu(QStringLiteral("&Edit"));
@@ -71,6 +85,12 @@ void TerminalMainWindow::setupMenu() {
     editMenu->addAction(QStringLiteral("&Find"), this, &TerminalMainWindow::onFind, QKeySequence::Find);
     editMenu->addSeparator();
     editMenu->addAction(QStringLiteral("&Settings"), this, &TerminalMainWindow::onSettings, QKeySequence::Preferences);
+    
+    QMenu* toolsMenu = menuBar->addMenu(QStringLiteral("&Tools"));
+    toolsMenu->addAction(QStringLiteral("AI &Assistant"), this, &TerminalMainWindow::onAiAssistant, QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_A));
+    toolsMenu->addAction(QStringLiteral("&File Transfer..."), this, &TerminalMainWindow::onFileTransfer, QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F));
+    toolsMenu->addAction(QStringLiteral("&Recording..."), this, &TerminalMainWindow::onRecording, QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_R));
+    toolsMenu->addAction(QStringLiteral("&Plugins..."), this, &TerminalMainWindow::onPluginManager, QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P));
     
     QMenu* viewMenu = menuBar->addMenu(QStringLiteral("&View"));
     viewMenu->addAction(QStringLiteral("Zoom &In"), this, &TerminalMainWindow::onZoomIn, QKeySequence::ZoomIn);
@@ -85,9 +105,12 @@ void TerminalMainWindow::setupMenu() {
     viewMenu->addAction(QStringLiteral("&Clear"), this, &TerminalMainWindow::onClear);
     
     QMenu* themeMenu = viewMenu->addMenu(QStringLiteral("&Theme"));
-    themeMenu->addAction(QStringLiteral("&Dark"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("dark"));
-    themeMenu->addAction(QStringLiteral("&Light"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("light"));
-    themeMenu->addAction(QStringLiteral("&Solarized"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("solarized"));
+    themeMenu->addAction(QStringLiteral("&Default"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("Default"));
+    themeMenu->addAction(QStringLiteral("&Dracula"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("Dracula"));
+    themeMenu->addAction(QStringLiteral("&Monokai"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("Monokai"));
+    themeMenu->addAction(QStringLiteral("S&olarized Dark"), this, &TerminalMainWindow::onThemeChanged)->setData(QStringLiteral("Solarized Dark"));
+    themeMenu->addSeparator();
+    themeMenu->addAction(QStringLiteral("&More Themes..."), this, &TerminalMainWindow::onOpenThemeDialog);
     
     QMenu* backendMenu = viewMenu->addMenu(QStringLiteral("Render &Backend"));
     backendMenu->addAction(QStringLiteral("Au&to"), this, &TerminalMainWindow::onBackendChanged)->setData(QStringLiteral("auto"));
@@ -260,33 +283,26 @@ void TerminalMainWindow::onResetZoom() {
 
 void TerminalMainWindow::onThemeChanged() {
     QAction* action = qobject_cast<QAction*>(sender());
-    if (!action) return;
+    if (!action || !m_activeTerminal) return;
     
-    QString theme = action->data().toString();
-    TerminalConfig config;
+    QString themeName = action->data().toString();
+    ThemeManager* manager = ThemeManager::instance();
+    QVector<ThemeConfig> themes = manager->availableThemes();
     
-    if (theme == QStringLiteral("dark")) {
-        config.backgroundColor = QColor(30, 30, 30);
-        config.foregroundColor = QColor(200, 200, 200);
-    } else if (theme == QStringLiteral("light")) {
-        config.backgroundColor = QColor(240, 240, 240);
-        config.foregroundColor = QColor(0, 0, 0);
-    } else if (theme == QStringLiteral("solarized")) {
-        config.backgroundColor = QColor(0, 43, 54);
-        config.foregroundColor = QColor(131, 148, 150);
+    for (const ThemeConfig& theme : themes) {
+        if (theme.name == themeName) {
+            manager->setTheme(theme);
+            m_activeTerminal->setTheme(theme);
+            m_statusLabel->setText(QString(QStringLiteral("Theme: %1")).arg(themeName));
+            return;
+        }
     }
-    
+}
+
+void TerminalMainWindow::onOpenThemeDialog() {
     if (m_activeTerminal) {
-        config.fontFamily = m_activeTerminal->config().fontFamily;
-        config.fontSize = m_activeTerminal->config().fontSize;
-        config.bufferCapacity = m_activeTerminal->config().bufferCapacity;
-        config.columns = m_activeTerminal->config().columns;
-        config.rows = m_activeTerminal->config().rows;
-        config.backend = m_activeTerminal->config().backend;
-        m_activeTerminal->setConfig(config);
+        m_activeTerminal->showThemeDialog();
     }
-    
-    m_statusLabel->setText(QString(QStringLiteral("Theme: %1")).arg(theme));
 }
 
 void TerminalMainWindow::onBackendChanged() {
@@ -323,6 +339,138 @@ void TerminalMainWindow::onScrollPositionChanged(int current, int max) {
 }
 
 void TerminalMainWindow::closeEvent(QCloseEvent* event) {
+    saveSession();
     saveSettings();
     QMainWindow::closeEvent(event);
+}
+
+void TerminalMainWindow::saveSession() {
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("session"));
+    
+    int tabCount = m_tabWidget->count();
+    settings.setValue("tabCount", tabCount);
+    settings.setValue("currentIndex", m_tabWidget->currentIndex());
+    
+    for (int i = 0; i < tabCount; ++i) {
+        TerminalWidget* terminal = qobject_cast<TerminalWidget*>(m_tabWidget->widget(i));
+        if (terminal) {
+            QString tabKey = QStringLiteral("tab_%1").arg(i);
+            QJsonObject state = terminal->saveSessionState();
+            state["tabTitle"] = m_tabWidget->tabText(i);
+            settings.setValue(tabKey, QJsonDocument(state).toJson(QJsonDocument::Compact));
+        }
+    }
+    
+    settings.endGroup();
+    settings.sync();
+}
+
+bool TerminalMainWindow::restoreSession() {
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("session"));
+    
+    int tabCount = settings.value("tabCount", 0).toInt();
+    int currentIndex = settings.value("currentIndex", 0).toInt();
+    
+    if (tabCount <= 0) {
+        settings.endGroup();
+        return false;
+    }
+    
+    for (int i = 0; i < tabCount; ++i) {
+        QString tabKey = QStringLiteral("tab_%1").arg(i);
+        QString jsonStr = settings.value(tabKey).toString();
+        
+        if (jsonStr.isEmpty()) {
+            onNewTab();
+            continue;
+        }
+        
+        QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
+        if (doc.isNull() || !doc.isObject()) {
+            onNewTab();
+            continue;
+        }
+        
+        QJsonObject state = doc.object();
+        TerminalWidget* terminal = createTerminal();
+        
+        int index = m_tabWidget->addTab(terminal, state["tabTitle"].toString(QStringLiteral("Tab %1").arg(i + 1)));
+        terminal->restoreSessionState(state);
+        
+        if (i == currentIndex) {
+            m_tabWidget->setCurrentIndex(index);
+            m_activeTerminal = terminal;
+        }
+    }
+    
+    settings.endGroup();
+    return true;
+}
+
+void TerminalMainWindow::onTabRenameRequested(int index) {
+    TerminalWidget* terminal = qobject_cast<TerminalWidget*>(m_tabWidget->widget(index));
+    if (!terminal) return;
+    
+    QString currentName = m_tabWidget->tabText(index);
+    bool ok;
+    QString newName = QInputDialog::getText(this, QStringLiteral("重命名标签"),
+        QStringLiteral("标签名称:"), QLineEdit::Normal, currentName, &ok);
+    
+    if (ok && !newName.isEmpty()) {
+        m_tabWidget->setTabText(index, newName);
+        if (terminal) {
+            terminal->setTabName(newName);
+        }
+    }
+}
+
+void TerminalMainWindow::onTabCloseOthersRequested(int index) {
+    for (int i = m_tabWidget->count() - 1; i >= 0; --i) {
+        if (i != index) {
+            QWidget* widget = m_tabWidget->widget(i);
+            m_tabWidget->removeTab(i);
+            widget->deleteLater();
+        }
+    }
+}
+
+void TerminalMainWindow::onTabCloseAllRequested() {
+    while (m_tabWidget->count() > 0) {
+        QWidget* widget = m_tabWidget->widget(0);
+        m_tabWidget->removeTab(0);
+        widget->deleteLater();
+    }
+    onNewTab();
+}
+
+void TerminalMainWindow::onImportExport() {
+    if (m_activeTerminal) {
+        m_activeTerminal->showImportExportDialog();
+    }
+}
+
+void TerminalMainWindow::onPluginManager() {
+    if (m_activeTerminal) {
+        m_activeTerminal->showPluginManagerDialog();
+    }
+}
+
+void TerminalMainWindow::onAiAssistant() {
+    if (m_activeTerminal) {
+        m_activeTerminal->showAiAssistantDialog();
+    }
+}
+
+void TerminalMainWindow::onFileTransfer() {
+    if (m_activeTerminal) {
+        m_activeTerminal->showFileTransferDialog();
+    }
+}
+
+void TerminalMainWindow::onRecording() {
+    if (m_activeTerminal) {
+        m_activeTerminal->showRecordingDialog();
+    }
 }

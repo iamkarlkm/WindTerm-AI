@@ -1,0 +1,8 @@
+{
+    "id": "terminal-info",
+    "name": "Terminal Info",
+    "version": "1.0.0",
+    "description": "Displays session information and command statistics",
+    "author": "WindTerm-AI Team",
+    "type": "UISupplement"
+}

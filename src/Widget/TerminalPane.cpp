@@ -1,9 +1,11 @@
 #include "TerminalPane.h"
 #include "TerminalWidget.h"
+#include "ThemeDialog.h"
 #include "MemoryViewerDialog.h"
 #include "MemoryEditorDialog.h"
 #include "MemoryFragment/MemoryFragmentStore.h"
 #include "MemoryFragment/MemoryFragment.h"
+#include "AiIntegration/AiClient.h"
 #include <QDebug>
 #include <QApplication>
 #include <QFontMetrics>
@@ -11,6 +13,12 @@
 #include <QDir>
 #include <QDateTime>
 #include <QMessageBox>
+#include <QMimeData>
+#include <QUrl>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QDesktopServices>
+#include <QCursor>
 
 TerminalPane::TerminalPane(QWidget* parent)
     : QOpenGLWidget(parent), m_session(nullptr), m_renderer(nullptr),
@@ -20,7 +28,9 @@ TerminalPane::TerminalPane(QWidget* parent)
       m_cursorVisible(true), m_cursorBlinkState(true),
       m_border(PaneBorder::None),
       m_activeBorderColor(100, 150, 255),
-      m_inactiveBorderColor(80, 80, 80) {
+      m_inactiveBorderColor(80, 80, 80), m_fontSize(14), m_currentMatchIndex(-1),
+      m_scrollBar(nullptr), m_scrollBarVisible(false), m_hoveredUrlIndex(-1),
+      m_bellActive(false), m_bellFlashCount(0) {
     
     m_session = new TerminalSession(this);
     
@@ -46,6 +56,14 @@ TerminalPane::TerminalPane(QWidget* parent)
     connect(m_session, &TerminalSession::cursorMoved, this, &TerminalPane::onCursorMoved);
     connect(m_session, &TerminalSession::titleChanged, this, &TerminalPane::onSessionTitleChanged);
     connect(m_session, &TerminalSession::processFinished, this, &TerminalPane::onProcessFinished);
+    connect(m_session, &TerminalSession::bellRequested, this, &TerminalPane::onBell);
+    
+    m_scrollBar = new QScrollBar(Qt::Vertical, this);
+    m_scrollBar->hide();
+    connect(m_scrollBar, &QScrollBar::valueChanged, this, [this](int value) {
+        m_scrollOffset = qBound(0, value, m_session->scrollbackSize());
+        update();
+    });
 }
 
 TerminalPane::~TerminalPane() {
@@ -79,6 +97,7 @@ void TerminalPane::stop() {
 }
 
 void TerminalPane::setFontFamily(const QString& family) {
+    m_fontFamily = family;
     if (m_renderer) {
         m_renderer->setFontFamily(family);
     }
@@ -87,6 +106,7 @@ void TerminalPane::setFontFamily(const QString& family) {
 }
 
 void TerminalPane::setFontSize(int size) {
+    m_fontSize = size;
     if (m_renderer) {
         m_renderer->setFontSize(size);
     }
@@ -99,6 +119,24 @@ void TerminalPane::setColors(const QColor& bg, const QColor& fg) {
         m_renderer->setBackgroundColor(bg);
         m_renderer->setForegroundColor(fg);
     }
+    update();
+}
+
+void TerminalPane::setTheme(const ThemeConfig& theme) {
+    m_theme = theme;
+    m_fontFamily = theme.fontFamily;
+    m_fontSize = theme.fontSize;
+    
+    if (m_renderer) {
+        m_renderer->setBackgroundColor(theme.background);
+        m_renderer->setForegroundColor(theme.foreground);
+        m_renderer->setFontFamily(theme.fontFamily);
+        m_renderer->setFontSize(theme.fontSize);
+    }
+    
+    m_activeBorderColor = theme.cursor;
+    calculateCharDimensions();
+    updateTerminalSize();
     update();
 }
 
@@ -133,8 +171,10 @@ void TerminalPane::setBorder(PaneBorder border) {
 void TerminalPane::initializeGL() {
     m_renderer = RendererFactory::createRenderer(RendererBackend::Auto, this);
     if (m_renderer && m_renderer->initialize()) {
-        m_renderer->setFontFamily(QStringLiteral("Monospace"));
-        m_renderer->setFontSize(14);
+        m_fontFamily = QStringLiteral("Monospace");
+        m_fontSize = 14;
+        m_renderer->setFontFamily(m_fontFamily);
+        m_renderer->setFontSize(m_fontSize);
         m_renderer->setBackgroundColor(QColor(30, 30, 30));
         m_renderer->setForegroundColor(QColor(200, 200, 200));
     }
@@ -156,6 +196,8 @@ void TerminalPane::paintGL() {
     
     m_renderer->clear();
     renderContent();
+    renderSearchHighlights();
+    renderHyperlinks();
     renderSelection();
     
     if (m_isActive && m_cursorVisible && m_cursorBlinkState) {
@@ -163,6 +205,7 @@ void TerminalPane::paintGL() {
     }
     
     renderBorder();
+    renderBellFlash();
     
     m_renderer->render();
 }
@@ -213,28 +256,66 @@ void TerminalPane::renderContent() {
     }
 }
 
+void TerminalPane::renderSearchHighlights() {
+    if (m_searchMatches.isEmpty()) return;
+    
+    QColor searchColor(255, 255, 0, 80);
+    QColor currentSearchColor(255, 165, 0, 120);
+    
+    for (int i = 0; i < m_searchMatches.size(); i++) {
+        const SearchMatch& match = m_searchMatches[i];
+        int row = match.row - m_scrollOffset;
+        
+        if (row < 0 || row >= m_rows) continue;
+        
+        QColor color = (i == m_currentMatchIndex) ? currentSearchColor : searchColor;
+        
+        for (int c = 0; c < match.length && (match.col + c) < m_cols; c++) {
+            int x = (match.col + c) * m_charWidth;
+            int y = row * m_charHeight;
+            m_renderer->appendBackground(x, y, m_charWidth, m_charHeight, color);
+        }
+    }
+}
+
+void TerminalPane::renderHyperlinks() {
+    for (int i = 0; i < m_urlMatches.size(); i++) {
+        const UrlMatch& match = m_urlMatches[i];
+        int row = match.row - m_scrollOffset;
+        
+        if (row < 0 || row >= m_rows) continue;
+        if (!match.isHyperlink) continue;
+        
+        for (int c = 0; c < match.length && (match.col + c) < m_cols; c++) {
+            int x = (match.col + c) * m_charWidth;
+            int y = row * m_charHeight + m_charHeight - 1;
+            
+            if (i == m_hoveredUrlIndex) {
+                m_renderer->appendBackground(x, y, m_charWidth, 2, QColor(0, 120, 215));
+            } else {
+                m_renderer->appendBackground(x, y, m_charWidth, 1, QColor(0, 120, 215, 180));
+            }
+        }
+    }
+}
+
 void TerminalPane::renderCursor() {
     if (!m_session) return;
     
     int x = m_cursor.col * m_charWidth;
     int y = m_cursor.row * m_charHeight;
     
+    QColor cursorColor = m_theme.cursor;
+    QColor cursorTextColor = m_theme.cursorText;
+    
     const QVector<StyledChar>& line = m_session->line(m_cursor.row + m_scrollOffset);
     if (line.size() > m_cursor.col) {
         const StyledChar& sc = line[m_cursor.col];
-        QColor cursorColor = sc.reverse ? sc.foreground : sc.background;
-        if (!cursorColor.isValid()) {
-            cursorColor = m_renderer->foregroundColor();
-        }
         m_renderer->appendBackground(x, y, m_charWidth, m_charHeight, cursorColor);
         
         QString ch(sc.character);
         if (!ch.isEmpty() && ch != QStringLiteral(" ")) {
-            QColor chColor = sc.reverse ? sc.background : sc.foreground;
-            if (!chColor.isValid()) {
-                chColor = m_renderer->backgroundColor();
-            }
-            m_renderer->appendText(ch, x, y, chColor);
+            m_renderer->appendText(ch, x, y, cursorTextColor);
         }
     }
 }
@@ -242,7 +323,7 @@ void TerminalPane::renderCursor() {
 void TerminalPane::renderSelection() {
     if (!m_selection.active) return;
     
-    QColor selectionColor(100, 150, 255, 100);
+    QColor selectionColor = m_theme.selection;
     
     int startRow = qMin(m_selection.startRow, m_selection.endRow);
     int endRow = qMax(m_selection.startRow, m_selection.endRow);
@@ -286,8 +367,17 @@ void TerminalPane::renderBorder() {
     }
 }
 
+void TerminalPane::renderBellFlash() {
+    if (!m_bellActive || m_bellFlashCount <= 0) return;
+    
+    QColor flashColor(255, 255, 0, 30);
+    m_renderer->appendBackground(0, 0, width(), height(), flashColor);
+}
+
 void TerminalPane::calculateCharDimensions() {
-    QFontMetrics fm(QFont(QStringLiteral("Monospace"), 14));
+    QString family = m_fontFamily.isEmpty() ? QStringLiteral("Monospace") : m_fontFamily;
+    int size = m_fontSize > 0 ? m_fontSize : 14;
+    QFontMetrics fm(QFont(family, size));
     m_charWidth = fm.horizontalAdvance(QStringLiteral("M"));
     m_charHeight = fm.height();
     
@@ -324,6 +414,56 @@ void TerminalPane::keyPressEvent(QKeyEvent* event) {
             emit splitRequested(Qt::Horizontal);
             return;
         }
+        if (event->key() == Qt::Key_R) {
+            QWidget* p = parentWidget();
+            while (p) {
+                if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+                    widget->showCommandSearchDialog();
+                    return;
+                }
+                p = p->parentWidget();
+            }
+        }
+        if (event->key() == Qt::Key_B) {
+            QWidget* p = parentWidget();
+            while (p) {
+                if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+                    widget->showBookmarksDialog();
+                    return;
+                }
+                p = p->parentWidget();
+            }
+        }
+        if (event->key() == Qt::Key_A) {
+            QWidget* p = parentWidget();
+            while (p) {
+                if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+                    widget->showAiAssistantDialog();
+                    return;
+                }
+                p = p->parentWidget();
+            }
+        }
+        if (event->key() == Qt::Key_F) {
+            QWidget* p = parentWidget();
+            while (p) {
+                if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+                    widget->showFileTransferDialog();
+                    return;
+                }
+                p = p->parentWidget();
+            }
+        }
+        if (event->key() == Qt::Key_G) {
+            QWidget* p = parentWidget();
+            while (p) {
+                if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+                    widget->showTerminalSearchDialog();
+                    return;
+                }
+                p = p->parentWidget();
+            }
+        }
     }
     
     if (mods & Qt::ControlModifier) {
@@ -337,7 +477,10 @@ void TerminalPane::keyPressEvent(QKeyEvent* event) {
     
     QByteArray seq;
     switch (event->key()) {
-        case Qt::Key_Return: case Qt::Key_Enter: seq = "\r"; break;
+        case Qt::Key_Return: case Qt::Key_Enter:
+        seq = "\r";
+        processAiTrigger();
+        break;
         case Qt::Key_Backspace: seq = "\x7f"; break;
         case Qt::Key_Escape: seq = "\x1b"; break;
         case Qt::Key_Tab: seq = "\t"; break;
@@ -371,6 +514,11 @@ void TerminalPane::keyPressEvent(QKeyEvent* event) {
 
 void TerminalPane::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
+        if (event->modifiers() & Qt::ControlModifier) {
+            openUrlAtPosition(event->x(), event->y());
+            return;
+        }
+        
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
         if (currentTime - m_lastClickTime < 500) {
             m_clickCount++;
@@ -414,6 +562,31 @@ void TerminalPane::mouseReleaseEvent(QMouseEvent* event) {
 }
 
 void TerminalPane::mouseMoveEvent(QMouseEvent* event) {
+    int row = event->y() / m_charHeight;
+    int col = event->x() / m_charWidth;
+    
+    int hoveredIndex = -1;
+    for (int i = 0; i < m_urlMatches.size(); i++) {
+        const UrlMatch& match = m_urlMatches[i];
+        int visibleRow = match.row - m_scrollOffset;
+        if (visibleRow < 0 || visibleRow >= m_rows) continue;
+        
+        if (visibleRow == row && col >= match.col && col < match.col + match.length) {
+            hoveredIndex = i;
+            break;
+        }
+    }
+    
+    if (hoveredIndex != m_hoveredUrlIndex) {
+        m_hoveredUrlIndex = hoveredIndex;
+        if (m_hoveredUrlIndex >= 0) {
+            setCursor(QCursor(Qt::PointingHandCursor));
+        } else {
+            setCursor(QCursor(Qt::ArrowCursor));
+        }
+        update();
+    }
+    
     if (m_mouseSelecting) {
         QPoint charPos = pixelToChar(event->pos());
         m_selection.endRow = qBound(0, charPos.y(), m_rows - 1);
@@ -478,6 +651,18 @@ void TerminalPane::contextMenuEvent(QContextMenuEvent* event) {
     
     menu.addSeparator();
     
+    QAction* themeAction = menu.addAction(QStringLiteral("主题设置"));
+    connect(themeAction, &QAction::triggered, this, [this]() {
+        QWidget* p = parentWidget();
+        while (p) {
+            if (auto* widget = qobject_cast<TerminalWidget*>(p)) {
+                widget->showThemeDialog();
+                break;
+            }
+            p = p->parentWidget();
+        }
+    });
+    
     QAction* splitHAction = menu.addAction(QStringLiteral("Split Horizontal"));
     connect(splitHAction, &QAction::triggered, this, [this]() {
         emit splitRequested(Qt::Horizontal);
@@ -508,6 +693,25 @@ void TerminalPane::focusOutEvent(QFocusEvent* event) {
 
 void TerminalPane::onScreenUpdated() {
     m_cursor = m_session->cursor();
+    
+    int scrollbackSize = m_session->scrollbackSize();
+    m_scrollBarVisible = scrollbackSize > 0;
+    
+    if (m_scrollBar) {
+        if (m_scrollBarVisible) {
+            m_scrollBar->setRange(0, scrollbackSize);
+            m_scrollBar->setPageStep(m_rows);
+            m_scrollBar->setSingleStep(3);
+            m_scrollBar->setValue(m_scrollOffset);
+            m_scrollBar->show();
+            int barWidth = 14;
+            m_scrollBar->setGeometry(width() - barWidth, 0, barWidth, height());
+        } else {
+            m_scrollBar->hide();
+        }
+    }
+    
+    detectUrls();
     update();
 }
 
@@ -523,6 +727,26 @@ void TerminalPane::onSessionTitleChanged(const QString& title) {
 
 void TerminalPane::onProcessFinished(int exitCode) {
     qDebug() << "[TerminalPane]" << m_paneId << "process finished with code:" << exitCode;
+}
+
+void TerminalPane::onBell() {
+    QApplication::beep();
+    
+    m_bellActive = true;
+    m_bellFlashCount = 3;
+    
+    QTimer* bellTimer = new QTimer(this);
+    connect(bellTimer, &QTimer::timeout, this, [this, bellTimer]() {
+        m_bellFlashCount--;
+        update();
+        
+        if (m_bellFlashCount <= 0) {
+            m_bellActive = false;
+            bellTimer->stop();
+            bellTimer->deleteLater();
+        }
+    });
+    bellTimer->start(100);
 }
 
 MemoryFragmentStore* TerminalPane::memoryStore() const {
@@ -661,11 +885,9 @@ void TerminalPane::copySelectedText() {
 }
 
 void TerminalPane::pasteFromClipboard() {
-    QClipboard* clipboard = QApplication::clipboard();
-    if (clipboard && clipboard->text().isEmpty()) {
-        return;
+    if (m_session) {
+        m_session->pasteFromClipboard();
     }
-    write(clipboard->text().toUtf8());
 }
 
 void TerminalPane::selectWord(int col, int row) {
@@ -704,4 +926,259 @@ void TerminalPane::selectLine(int row) {
     m_selection.endRow = row;
     m_selection.startCol = 0;
     m_selection.endCol = m_cols - 1;
+}
+
+void TerminalPane::processAiTrigger() {
+    QWidget* p = parentWidget();
+    TerminalWidget* widget = nullptr;
+    while (p) {
+        widget = qobject_cast<TerminalWidget*>(p);
+        if (widget) break;
+        p = p->parentWidget();
+    }
+    if (!widget || !widget->aiClient()) return;
+    
+    int lastRow = qMax(0, m_session->rows() - 1 + m_scrollOffset);
+    const QVector<StyledChar>& line = m_session->line(lastRow);
+    
+    QString lineText;
+    for (const auto& ch : line) {
+        lineText += ch.character;
+    }
+    lineText = lineText.trimmed();
+    
+    if (lineText.startsWith("/ai ")) {
+        QString query = lineText.mid(4).trimmed();
+        if (query.isEmpty()) return;
+        
+        QString workingDir = m_session->ptyManager() ? m_session->ptyManager()->workingDirectory() : QString();
+        QStringList recentCommands;
+        
+        widget->aiClient()->sendPrompt(query, workingDir);
+    } else if (lineText.endsWith("!!")) {
+        QString baseCmd = lineText.left(lineText.length() - 2).trimmed();
+        QString query = baseCmd.isEmpty() ? 
+            QStringLiteral("解释一下上一条命令的作用") : 
+            QString("解释一下命令 '%1' 的作用").arg(baseCmd);
+        
+        QString workingDir = m_session->ptyManager() ? m_session->ptyManager()->workingDirectory() : QString();
+        widget->aiClient()->sendPrompt(query, workingDir);
+        
+        widget->showAiAssistantDialog();
+    }
+}
+
+void TerminalPane::searchInBuffer(const QString& text, bool forward) {
+    if (!m_session || text.isEmpty()) {
+        clearSearchHighlight();
+        return;
+    }
+    
+    m_searchText = text;
+    m_searchMatches.clear();
+    m_currentMatchIndex = -1;
+    
+    int totalRows = m_session->rows() + m_session->scrollbackSize();
+    QString searchText = text.toLower();
+    
+    for (int row = 0; row < totalRows; row++) {
+        const QVector<StyledChar>& line = m_session->line(row);
+        QString lineText;
+        for (const auto& ch : line) {
+            lineText += ch.character;
+        }
+        
+        int pos = 0;
+        while ((pos = lineText.toLower().indexOf(searchText, pos)) != -1) {
+            SearchMatch match;
+            match.row = row;
+            match.col = pos;
+            match.length = searchText.length();
+            m_searchMatches.append(match);
+            pos += searchText.length();
+        }
+    }
+    
+    if (!m_searchMatches.isEmpty()) {
+        if (forward) {
+            m_currentMatchIndex = 0;
+        } else {
+            m_currentMatchIndex = m_searchMatches.size() - 1;
+        }
+        
+        int matchRow = m_searchMatches[m_currentMatchIndex].row;
+        int visibleStart = m_scrollOffset;
+        int visibleEnd = m_scrollOffset + m_rows - 1;
+        
+        if (matchRow < visibleStart) {
+            m_scrollOffset = matchRow;
+        } else if (matchRow > visibleEnd) {
+            m_scrollOffset = matchRow - m_rows + 1;
+        }
+        
+        m_scrollOffset = qBound(0, m_scrollOffset, m_session->scrollbackSize());
+    }
+    
+    update();
+}
+
+void TerminalPane::clearSearchHighlight() {
+    m_searchText.clear();
+    m_searchMatches.clear();
+    m_currentMatchIndex = -1;
+    update();
+}
+
+void TerminalPane::dragEnterEvent(QDragEnterEvent* event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void TerminalPane::dragMoveEvent(QDragMoveEvent* event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void TerminalPane::dropEvent(QDropEvent* event) {
+    const QMimeData* mimeData = event->mimeData();
+    if (!mimeData->hasUrls()) return;
+    
+    QStringList paths;
+    for (const QUrl& url : mimeData->urls()) {
+        QString path = url.toLocalFile();
+        if (!path.isEmpty()) {
+            paths.append(path);
+        }
+    }
+    
+    if (paths.isEmpty()) return;
+    
+    if (paths.size() == 1) {
+        QString path = paths.first();
+        if (path.contains(' ')) {
+            path.replace(QLatin1String("'"), QLatin1String("'\\''"));
+            path = QStringLiteral("'%1'").arg(path);
+        }
+        write(path.toUtf8());
+    } else {
+        for (QString path : paths) {
+            if (path.contains(' ')) {
+                path.replace(QLatin1String("'"), QLatin1String("'\\''"));
+                path = QStringLiteral("'%1'").arg(path);
+            }
+            write(path.toUtf8());
+            write(" ");
+        }
+    }
+}
+
+void TerminalPane::resizeEvent(QResizeEvent* event) {
+    QOpenGLWidget::resizeEvent(event);
+    
+    if (m_scrollBar && m_scrollBarVisible) {
+        int barWidth = 14;
+        m_scrollBar->setGeometry(width() - barWidth, 0, barWidth, height());
+    }
+}
+
+void TerminalPane::leaveEvent(QEvent* event) {
+    m_hoveredUrlIndex = -1;
+    setCursor(QCursor(Qt::ArrowCursor));
+    QOpenGLWidget::leaveEvent(event);
+}
+
+void TerminalPane::detectUrls() {
+    m_urlMatches.clear();
+    
+    if (!m_session) return;
+    
+    int totalRows = m_session->rows();
+    
+    for (int row = 0; row < totalRows && row < m_rows + m_scrollOffset; row++) {
+        const QVector<StyledChar>& cells = m_session->line(row);
+        QString lineText;
+        int hyperlinkStart = -1;
+        QString currentHyperlink;
+        
+        for (int col = 0; col < cells.size(); col++) {
+            const StyledChar& cell = cells[col];
+            lineText += cell.character;
+            
+            if (!cell.hyperlink.isEmpty()) {
+                if (hyperlinkStart < 0) {
+                    hyperlinkStart = col;
+                    currentHyperlink = cell.hyperlink;
+                }
+            } else if (hyperlinkStart >= 0) {
+                UrlMatch match;
+                match.row = row;
+                match.col = hyperlinkStart;
+                match.length = col - hyperlinkStart;
+                match.url = currentHyperlink;
+                match.isFile = false;
+                match.isHyperlink = true;
+                m_urlMatches.append(match);
+                
+                hyperlinkStart = -1;
+                currentHyperlink.clear();
+            }
+        }
+        
+        if (hyperlinkStart >= 0) {
+            UrlMatch match;
+            match.row = row;
+            match.col = hyperlinkStart;
+            match.length = cells.size() - hyperlinkStart;
+            match.url = currentHyperlink;
+            match.isFile = false;
+            match.isHyperlink = true;
+            m_urlMatches.append(match);
+        }
+        
+        QVector<UrlMatch> regexMatches = m_urlDetector.findUrls(lineText, row, 0);
+        for (const UrlMatch& m : regexMatches) {
+            bool alreadyExists = false;
+            for (const UrlMatch& existing : m_urlMatches) {
+                if (existing.row == m.row && existing.col == m.col) {
+                    alreadyExists = true;
+                    break;
+                }
+            }
+            if (!alreadyExists) {
+                m_urlMatches.append(m);
+            }
+        }
+    }
+}
+
+void TerminalPane::openUrlAtPosition(int x, int y) {
+    int row = y / m_charHeight;
+    int col = x / m_charWidth;
+    
+    for (int i = 0; i < m_urlMatches.size(); i++) {
+        const UrlMatch& match = m_urlMatches[i];
+        
+        int visibleRow = match.row - m_scrollOffset;
+        if (visibleRow < 0 || visibleRow >= m_rows) continue;
+        
+        if (visibleRow == row && col >= match.col && col < match.col + match.length) {
+            QString url = match.url;
+            
+            if (match.isFile) {
+                if (url.startsWith("~")) {
+                    url = QDir::homePath() + url.mid(1);
+                }
+                QUrl fileUrl = QUrl::fromLocalFile(url);
+                QDesktopServices::openUrl(fileUrl);
+            } else {
+                if (!url.startsWith("http") && !url.startsWith("ftp") && !url.startsWith("ssh")) {
+                    url = "http://" + url;
+                }
+                QDesktopServices::openUrl(QUrl(url));
+            }
+            return;
+        }
+    }
 }

@@ -55,6 +55,77 @@ if(BUILD_BUFFER)
     endif()
 endif()
 
+# ANSI 解析器单元测试
+find_package(Qt5Test QUIET)
+if(Qt5Test_FOUND AND BUILD_RENDERER)
+    add_executable(ansi_parser_test
+        AnsiParserTest.cpp
+    )
+    
+    target_include_directories(ansi_parser_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+    
+    target_link_libraries(ansi_parser_test PRIVATE
+        WindTermTerminal
+        Qt5::Core
+        Qt5::Test
+    )
+    
+    add_test(NAME AnsiParserTest COMMAND ansi_parser_test)
+    
+    # TerminalState 单元测试
+    add_executable(terminal_state_test
+        TerminalStateTest.cpp
+    )
+    
+    target_include_directories(terminal_state_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+    
+    target_link_libraries(terminal_state_test PRIVATE
+        WindTermTerminal
+        Qt5::Core
+        Qt5::Test
+    )
+    
+    add_test(NAME TerminalStateTest COMMAND terminal_state_test)
+    
+    # UrlDetector 单元测试
+    add_executable(url_detector_test
+        UrlDetectorTest.cpp
+    )
+    
+    target_include_directories(url_detector_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+    
+    target_link_libraries(url_detector_test PRIVATE
+        WindTermWidget
+        Qt5::Core
+        Qt5::Test
+    )
+    
+    add_test(NAME UrlDetectorTest COMMAND url_detector_test)
+    
+    # UnicodeUtil 单元测试
+    add_executable(unicode_util_test
+        UnicodeUtilTest.cpp
+    )
+    
+    target_include_directories(unicode_util_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+    )
+    
+    target_link_libraries(unicode_util_test PRIVATE
+        WindTermRenderer
+        Qt5::Core
+        Qt5::Test
+    )
+    
+    add_test(NAME UnicodeUtilTest COMMAND unicode_util_test)
+endif()
+
 # 性能基准测试
 add_executable(performance_benchmark
     PerformanceBenchmark.cpp

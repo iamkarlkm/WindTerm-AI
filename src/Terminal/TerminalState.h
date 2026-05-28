@@ -9,12 +9,13 @@
 struct TerminalCell {
     QChar character;
     TextStyle style;
+    QString hyperlink;
     
     TerminalCell() : character(' '), style(TextStyle::defaultStyle()) {}
-    TerminalCell(QChar ch, const TextStyle& s) : character(ch), style(s) {}
+    TerminalCell(QChar ch, const TextStyle& s) : character(ch), style(s), hyperlink(s.hyperlink) {}
     
     bool isEmpty() const {
-        return character == ' ' && style == TextStyle::defaultStyle();
+        return character == ' ' && style == TextStyle::defaultStyle() && hyperlink.isEmpty();
     }
 };
 

@@ -1,0 +1,128 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          qtbase5-dev \
+          qttools5-dev \
+          qttools5-dev-tools \
+          libqt5opengl5-dev \
+          libqt5sql5-sqlite \
+          libssh-dev \
+          cmake \
+          g++ \
+          xvfb
+
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DBUILD_TESTS=ON \
+          -DBUILD_PLUGINS=ON
+
+    - name: Build
+      run: |
+        cd build
+        cmake --build . -j$(nproc)
+
+    - name: Run Tests
+      run: |
+        cd build
+        QT_QPA_PLATFORM=offscreen ctest --output-on-failure --verbose
+
+    - name: Package
+      run: |
+        cd build
+        tar -czf windterm-extensions-linux.tar.gz windterm-terminal
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windterm-linux
+        path: build/windterm-extensions-linux.tar.gz
+        retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        brew install qt@5 cmake libssh
+
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DCMAKE_PREFIX_PATH=$(brew --prefix qt@5) \
+          -DBUILD_TESTS=ON \
+          -DBUILD_PLUGINS=ON
+
+    - name: Build
+      run: |
+        cd build
+        cmake --build . -j$(sysctl -n hw.ncpu)
+
+    - name: Run Tests
+      run: |
+        cd build
+        QT_QPA_PLATFORM=offscreen ctest --output-on-failure --verbose
+
+    - name: Package
+      run: |
+        cd build
+        tar -czf windterm-extensions-macos.tar.gz windterm-terminal
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windterm-macos
+        path: build/windterm-extensions-macos.tar.gz
+        retention-days: 7
+
+  code-quality:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check CMake format
+      run: |
+        if ! command -v cmake-format &> /dev/null; then
+          pip3 install cmake-format
+        fi
+        cmake-format --check CMakeLists.txt tests/CMakeLists.txt || true
+
+    - name: Check code style
+      run: |
+        if ! command -v clang-format &> /dev/null; then
+          sudo apt-get install -y clang-format
+        fi
+        find src -name "*.cpp" -o -name "*.h" | head -20 | xargs clang-format --style=file --dry-run --Werror || true

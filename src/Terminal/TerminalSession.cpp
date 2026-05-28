@@ -4,7 +4,7 @@
 #include <QDebug>
 
 TerminalSession::TerminalSession(QObject* parent)
-    : QObject(parent), m_pty(nullptr), m_state(nullptr), m_needsRenderUpdate(false) {
+    : QObject(parent), m_pty(nullptr), m_state(nullptr), m_needsRenderUpdate(false), m_bracketedPasteEnabled(false) {
     m_pty = new PtyManager(this);
     m_state = new TerminalState(24, 80, this);
     
@@ -76,7 +76,15 @@ void TerminalSession::pasteFromClipboard() {
     if (QApplication::clipboard()) {
         QString text = QApplication::clipboard()->text();
         if (!text.isEmpty()) {
-            write(text.toUtf8());
+            if (m_bracketedPasteEnabled) {
+                QByteArray pasteData;
+                pasteData.append("\x1b[200~");
+                pasteData.append(text.toUtf8());
+                pasteData.append("\x1b[201~");
+                write(pasteData);
+            } else {
+                write(text.toUtf8());
+            }
         }
     }
 }
@@ -95,6 +103,16 @@ void TerminalSession::onPtyFinished(int exitCode, QProcess::ExitStatus exitStatu
 }
 
 void TerminalSession::processAnsiData(const QByteArray& data) {
+    if (data.contains("\x1b[?2004h")) {
+        m_bracketedPasteEnabled = true;
+    } else if (data.contains("\x1b[?2004l")) {
+        m_bracketedPasteEnabled = false;
+    }
+    
+    if (data.contains('\x07')) {
+        emit bellRequested();
+    }
+    
     m_state->write(data);
     
     int rows = m_state->rows();
@@ -137,4 +155,9 @@ QVector<StyledChar> TerminalSession::convertLine(const QVector<TerminalCell>& ce
 void TerminalSession::clearBuffer() {
     m_state->clearHistory();
     emit screenUpdated();
+}
+
+void TerminalSession::setTitle(const QString& title) {
+    m_title = title;
+    emit titleChanged(m_title);
 }

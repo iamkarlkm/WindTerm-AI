@@ -95,6 +95,7 @@ struct TextStyle {
     
     QColor foreground;
     QColor background;
+    QString hyperlink;
     
     static TextStyle defaultStyle() {
         TextStyle style;
@@ -106,6 +107,8 @@ struct TextStyle {
     void reset() {
         *this = defaultStyle();
     }
+    
+    bool hasHyperlink() const { return !hyperlink.isEmpty(); }
     
     bool operator==(const TextStyle& other) const {
         return bold == other.bold &&

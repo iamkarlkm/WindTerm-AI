@@ -5,10 +5,22 @@
 #include <QTabWidget>
 #include <QVector>
 #include <QColor>
+#include <QJsonObject>
 
 #include "Renderer/RendererFactory.h"
+#include "Theme/ThemeConfig.h"
 
 class MemoryFragmentStore;
+class ConnectionManager;
+class CommandHistoryStore;
+class BookmarksStore;
+class PluginManager;
+class PluginContext;
+class AiClient;
+class AiAssistantDialog;
+class RecordingDialog;
+class TerminalSearchDialog;
+struct ConnectionProfile;
 
 struct TerminalConfig {
     QString fontFamily = QStringLiteral("Consolas");
@@ -46,6 +58,36 @@ public:
     SplitterContainer* splitter() { return m_splitter; }
     
     MemoryFragmentStore* memoryStore() { return m_memoryStore; }
+    ConnectionManager* connectionManager() { return m_connectionManager; }
+    
+    void showConnectionDialog();
+    void connectToSsh(const ConnectionProfile& profile);
+    
+    void showThemeDialog();
+    void setTheme(const ThemeConfig& theme);
+    
+    void showCommandSearchDialog();
+    CommandHistoryStore* commandHistoryStore() { return m_commandHistoryStore; }
+    
+    void showBookmarksDialog();
+    BookmarksStore* bookmarksStore() { return m_bookmarksStore; }
+    
+    void showImportExportDialog();
+    void showPluginManagerDialog();
+    void showAiAssistantDialog();
+    void sendToAi(const QString& prompt);
+    void showFileTransferDialog();
+    void showRecordingDialog();
+    void showTerminalSearchDialog();
+    void sendToRecorder(const QByteArray& data);
+    
+    PluginManager* pluginManager() { return m_pluginManager; }
+    AiClient* aiClient() { return m_aiClient; }
+    
+    QJsonObject saveSessionState() const;
+    void restoreSessionState(const QJsonObject& state);
+    void setTabName(const QString& name);
+    QString tabName() const { return m_tabName; }
     
     void copyToClipboard();
     void pasteFromClipboard();
@@ -76,7 +118,17 @@ private:
     SplitterContainer* m_splitter;
     TerminalPane* m_activePane;
     MemoryFragmentStore* m_memoryStore;
+    ConnectionManager* m_connectionManager;
+    CommandHistoryStore* m_commandHistoryStore;
+    BookmarksStore* m_bookmarksStore;
+    PluginManager* m_pluginManager;
+    PluginContext* m_pluginContext;
+    AiClient* m_aiClient;
+    AiAssistantDialog* m_aiDialog;
+    RecordingDialog* m_recordingDialog;
+    TerminalSearchDialog* m_searchDialog;
     int m_paneCounter;
+    QString m_tabName;
 };
 
 #endif

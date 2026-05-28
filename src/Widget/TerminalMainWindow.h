@@ -9,9 +9,11 @@
 #include <QSettings>
 
 class TerminalWidget;
+class TabWidget;
 class QSplitter;
-class QTabWidget;
 class QAction;
+class PluginManager;
+class PluginContext;
 
 class TerminalMainWindow : public QMainWindow {
     Q_OBJECT
@@ -38,9 +40,18 @@ private slots:
     void onZoomOut();
     void onResetZoom();
     void onThemeChanged();
+    void onOpenThemeDialog();
     void onBackendChanged();
     void onSelectionChanged(const QString& text);
     void onScrollPositionChanged(int current, int max);
+    void onTabRenameRequested(int index);
+    void onTabCloseOthersRequested(int index);
+    void onTabCloseAllRequested();
+    void onImportExport();
+    void onPluginManager();
+    void onAiAssistant();
+    void onFileTransfer();
+    void onRecording();
     
 private:
     void setupMenu();
@@ -48,11 +59,13 @@ private:
     void setupStatusBar();
     void loadSettings();
     void saveSettings();
+    void saveSession();
+    bool restoreSession();
     
     TerminalWidget* createTerminal();
     
     TerminalWidget* m_activeTerminal;
-    QTabWidget* m_tabWidget;
+    TabWidget* m_tabWidget;
     QSplitter* m_splitter;
     
     QLabel* m_statusLabel;
@@ -61,6 +74,9 @@ private:
     
     QSettings* m_settings;
     QAction* m_fullscreenAction;
+    
+    PluginManager* m_pluginManager;
+    PluginContext* m_pluginContext;
     
     int m_zoomLevel;
     bool m_isFullscreen;

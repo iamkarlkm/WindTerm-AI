@@ -18,6 +18,7 @@ struct StyledChar {
     bool reverse;
     bool hidden;
     bool strikeThrough;
+    QString hyperlink;
     
     StyledChar() 
         : character(' '), bold(false), italic(false), underline(false), reverse(false),
@@ -32,7 +33,8 @@ struct StyledChar {
           underline(style.underline),
           reverse(style.reverse),
           hidden(style.hidden),
-          strikeThrough(style.strikeThrough) {}
+          strikeThrough(style.strikeThrough),
+          hyperlink(style.hyperlink) {}
 };
 
 class TerminalSession : public QObject {
@@ -56,11 +58,15 @@ public:
     int scrollbackSize() const { return m_state->scrollbackSize(); }
     
     QString title() const { return m_title; }
+    void setTitle(const QString& title);
     bool isRunning() const { return m_pty->isRunning(); }
+    PtyManager* ptyManager() const { return m_pty; }
     
     void copyToClipboard() const;
     void pasteFromClipboard();
     void clearBuffer();
+    
+    bool isBracketedPasteEnabled() const { return m_bracketedPasteEnabled; }
     
 signals:
     void dataAvailable(const QByteArray& data);
@@ -69,6 +75,7 @@ signals:
     void titleChanged(const QString& title);
     void scrollbackChanged(int size);
     void processFinished(int exitCode);
+    void bellRequested();
     
 private slots:
     void onPtyData(const QByteArray& data);
@@ -85,6 +92,7 @@ private:
     
     QVector<QVector<StyledChar>> m_renderBuffer;
     bool m_needsRenderUpdate;
+    bool m_bracketedPasteEnabled;
 };
 
 #endif

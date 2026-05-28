@@ -176,9 +176,36 @@ void AnsiParser::handleCsi(QChar ch) {
 
 void AnsiParser::handleOsc(QChar ch) {
     if (ch == '\x07' || ch == '\x1b') {
-        m_lastCommand = {TerminalCommand::SetWindowTitle};
-        m_lastCommand.oscString = m_oscParams;
-        if (commandCallback) commandCallback(m_lastCommand);
+        if (m_oscParams.startsWith("8;")) {
+            int semiPos = m_oscParams.indexOf(';', 2);
+            QString uri;
+            if (semiPos > 0) {
+                uri = m_oscParams.mid(semiPos + 1);
+            } else {
+                uri = m_oscParams.mid(2);
+            }
+            
+            TextStyle newStyle = m_currentStyle;
+            newStyle.hyperlink = uri;
+            
+            TextStyle oldStyle = m_currentStyle;
+            m_currentStyle = newStyle;
+            
+            if (styleCallback) styleCallback(oldStyle, newStyle);
+        } else if (m_oscParams.startsWith("8;;")) {
+            TextStyle newStyle = m_currentStyle;
+            newStyle.hyperlink.clear();
+            
+            TextStyle oldStyle = m_currentStyle;
+            m_currentStyle = newStyle;
+            
+            if (styleCallback) styleCallback(oldStyle, newStyle);
+        } else {
+            m_lastCommand = {TerminalCommand::SetWindowTitle};
+            m_lastCommand.oscString = m_oscParams;
+            if (commandCallback) commandCallback(m_lastCommand);
+        }
+        
         m_state = AnsiState::Normal;
         m_oscParams.clear();
     } else {

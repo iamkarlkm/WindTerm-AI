@@ -7,10 +7,15 @@
 #include <QMouseEvent>
 #include <QClipboard>
 #include <QMenu>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QScrollBar>
+#include "UrlDetector.h"
 
 #include "Terminal/TerminalSession.h"
 #include "Renderer/GPURenderer.h"
 #include "Renderer/RendererFactory.h"
+#include "Theme/ThemeConfig.h"
 
 class MemoryFragmentStore;
 
@@ -33,9 +38,14 @@ public:
     void setFontFamily(const QString& family);
     void setFontSize(int size);
     void setColors(const QColor& bg, const QColor& fg);
+    void setTheme(const ThemeConfig& theme);
+    const ThemeConfig& theme() const { return m_theme; }
     
     void write(const QByteArray& data);
     void resizeTerminal(int rows, int cols);
+    
+    void searchInBuffer(const QString& text, bool forward);
+    void clearSearchHighlight();
     
     TerminalSession* session() { return m_session; }
     bool isActive() const { return m_isActive; }
@@ -68,15 +78,27 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
     void focusInEvent(QFocusEvent* event) override;
     void focusOutEvent(QFocusEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragMoveEvent(QDragMoveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    
+    void detectUrls();
+    void openUrlAtPosition(int x, int y);
     
 private slots:
     void onScreenUpdated();
     void onCursorMoved(int row, int col);
     void onSessionTitleChanged(const QString& title);
     void onProcessFinished(int exitCode);
+    void onBell();
     
 private:
     void renderContent();
+    void renderSearchHighlights();
+    void renderHyperlinks();
+    void renderBellFlash();
     void renderCursor();
     void renderSelection();
     void renderBorder();
@@ -96,6 +118,8 @@ private:
     void pasteClipboardAsMemory();
     void createNewMemory();
     void openMemoryViewer();
+    
+    void processAiTrigger();
     
     TerminalSession* m_session;
     GPURenderer* m_renderer;
@@ -135,6 +159,29 @@ private:
     
     QColor m_activeBorderColor;
     QColor m_inactiveBorderColor;
+    
+    ThemeConfig m_theme;
+    QString m_fontFamily;
+    int m_fontSize;
+    
+    QString m_searchText;
+    struct SearchMatch {
+        int row;
+        int col;
+        int length;
+    };
+    QVector<SearchMatch> m_searchMatches;
+    int m_currentMatchIndex;
+    
+    QScrollBar* m_scrollBar;
+    bool m_scrollBarVisible;
+    
+    UrlDetector m_urlDetector;
+    QVector<UrlMatch> m_urlMatches;
+    int m_hoveredUrlIndex;
+    
+    bool m_bellActive;
+    int m_bellFlashCount;
 };
 
 #endif
