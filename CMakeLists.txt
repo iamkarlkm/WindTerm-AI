@@ -42,7 +42,6 @@ if(BUILD_RENDERER)
         src/Renderer/DirectX12Renderer.cpp
         src/Renderer/VulkanRenderer.cpp
         src/Utils/UnicodeUtil.cpp
-        src/Widget/BatchRenderer.cpp
     )
     
     set(RENDERER_HEADERS
@@ -57,7 +56,6 @@ if(BUILD_RENDERER)
         src/Renderer/VulkanRenderer.h
         src/Renderer/d3dx12_simple.h
         src/Utils/UnicodeUtil.h
-        src/Widget/BatchRenderer.h
     )
     
     # 平台特定源文件
@@ -185,14 +183,15 @@ if(BUILD_RENDERER)
     message(STATUS "Building SSH Module")
     
     add_library(WindTermSsh STATIC
-        src/Ssh/SshConfig.h
-        src/Ssh/SshChannelSession.cpp
-        src/Ssh/SshChannelSession.h
-        src/Ssh/ConnectionProfile.h
         src/Ssh/ConnectionManager.cpp
         src/Ssh/ConnectionManager.h
-        src/Ssh/ScpClient.h
         src/Ssh/ScpClient.cpp
+        src/Ssh/ScpClient.h
+        src/Ssh/SshChannelSession.cpp
+        src/Ssh/SshChannelSession.h
+        src/Ssh/SshConfig.h
+        src/Ssh/SshConnectionPool.cpp
+        src/Ssh/SshConnectionPool.h
     )
     
     target_include_directories(WindTermSsh PUBLIC
@@ -393,6 +392,8 @@ if(BUILD_WIDGET)
         src/Widget/UrlDetector.h
         src/Widget/TerminalRecording.cpp
         src/Widget/TerminalRecording.h
+        src/Widget/TerminalSearchEngine.cpp
+        src/Widget/TerminalSearchEngine.h
     )
     
     target_include_directories(WindTermWidget PUBLIC
