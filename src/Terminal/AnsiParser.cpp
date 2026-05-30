@@ -474,3 +474,100 @@ void AnsiParser::onCommand(const AnsiCommand& cmd) {
 void AnsiParser::onStyleChange(const TextStyle& oldStyle, const TextStyle& newStyle) {
     if (styleCallback) styleCallback(oldStyle, newStyle);
 }
+
+// Extended CSI handlers for better ANSI support
+
+void AnsiParser::handleCsiCursor(const QString& params) {
+    QStringList p = params.split(';');
+    
+    if (p.isEmpty() || p[0].isEmpty()) {
+        // Default cursor position
+        m_cursorRow = 0;
+        m_cursorCol = 0;
+        return;
+    }
+    
+    if (p.size() == 1) {
+        // Single parameter - column only (GCH)
+        int col = p[0].toInt() - 1;
+        m_cursorCol = qMax(0, qMin(col, m_screenCols - 1));
+    } else {
+        // Row and column
+        int row = p[0].toInt() - 1;
+        int col = p[1].toInt() - 1;
+        m_cursorRow = qMax(0, qMin(row, m_screenRows - 1));
+        m_cursorCol = qMax(0, qMin(col, m_screenCols - 1));
+    }
+}
+
+void AnsiParser::handleCsiErase(const QString& params) {
+    QString param = params.isEmpty() ? "0" : params;
+    
+    if (param == "0" || param.isEmpty()) {
+        // Erase from cursor to end of screen
+        for (int row = m_cursorRow; row < m_screenRows; row++) {
+            int startCol = (row == m_cursorRow) ? m_cursorCol : 0;
+            for (int col = startCol; col < m_screenCols; col++) {
+                m_screenBuffer[row][col] = qMakePair(QChar(' '), m_currentStyle);
+            }
+        }
+    } else if (param == "1") {
+        // Erase from start to cursor
+        for (int row = 0; row <= m_cursorRow; row++) {
+            int endCol = (row == m_cursorRow) ? m_cursorCol : m_screenCols - 1;
+            for (int col = 0; col <= endCol; col++) {
+                m_screenBuffer[row][col] = qMakePair(QChar(' '), m_currentStyle);
+            }
+        }
+    } else if (param == "2") {
+        // Erase entire screen
+        for (int row = 0; row < m_screenRows; row++) {
+            for (int col = 0; col < m_screenCols; col++) {
+                m_screenBuffer[row][col] = qMakePair(QChar(' '), m_currentStyle);
+            }
+        }
+        m_cursorRow = 0;
+        m_cursorCol = 0;
+    }
+}
+
+void AnsiParser::handleCsiEraseLine(const QString& params) {
+    QString param = params.isEmpty() ? "0" : params;
+    
+    if (param == "0" || param.isEmpty()) {
+        // Erase from cursor to end of line
+        for (int col = m_cursorCol; col < m_screenCols; col++) {
+            m_screenBuffer[m_cursorRow][col] = qMakePair(QChar(' '), m_currentStyle);
+        }
+    } else if (param == "1") {
+        // Erase from start to cursor
+        for (int col = 0; col <= m_cursorCol; col++) {
+            m_screenBuffer[m_cursorRow][col] = qMakePair(QChar(' '), m_currentStyle);
+        }
+    } else if (param == "2") {
+        // Erase entire line
+        for (int col = 0; col < m_screenCols; col++) {
+            m_screenBuffer[m_cursorRow][col] = qMakePair(QChar(' '), m_currentStyle);
+        }
+    }
+}
+
+void AnsiParser::handleCsiScroll(const QString& params) {
+    int count = params.isEmpty() ? 1 : params.toInt();
+    if (count <= 0) count = 1;
+    
+    scrollUp(count);
+}
+
+void AnsiParser::handleCsiScrollDown(const QString& params) {
+    int count = params.isEmpty() ? 1 : params.toInt();
+    if (count <= 0) count = 1;
+    
+    // Scroll down by inserting blank lines at top
+    for (int i = 0; i < count; i++) {
+        m_screenBuffer.prepend(m_currentLine);
+        if (m_screenBuffer.size() > m_screenRows) {
+            m_screenBuffer.removeLast();
+        }
+    }
+}

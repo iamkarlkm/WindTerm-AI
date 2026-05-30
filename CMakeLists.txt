@@ -42,6 +42,7 @@ if(BUILD_RENDERER)
         src/Renderer/DirectX12Renderer.cpp
         src/Renderer/VulkanRenderer.cpp
         src/Utils/UnicodeUtil.cpp
+        src/Widget/BatchRenderer.cpp
     )
     
     set(RENDERER_HEADERS
@@ -56,6 +57,7 @@ if(BUILD_RENDERER)
         src/Renderer/VulkanRenderer.h
         src/Renderer/d3dx12_simple.h
         src/Utils/UnicodeUtil.h
+        src/Widget/BatchRenderer.h
     )
     
     # 平台特定源文件
@@ -135,6 +137,7 @@ if(BUILD_RENDERER)
         src/Terminal/PtyManager.h
         src/Terminal/TerminalSession.cpp
         src/Terminal/TerminalSession.h
+        src/Terminal/AnsiEscapeCodes.h
     )
     
     target_include_directories(WindTermTerminal PUBLIC

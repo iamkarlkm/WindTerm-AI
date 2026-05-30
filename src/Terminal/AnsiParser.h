@@ -169,6 +169,13 @@ private:
     void scrollUp(int n);
     void scrollDown(int n);
     
+    // Extended CSI handlers
+    void handleCsiCursor(const QString& params);
+    void handleCsiErase(const QString& params);
+    void handleCsiEraseLine(const QString& params);
+    void handleCsiScroll(const QString& params);
+    void handleCsiScrollDown(const QString& params);
+    
     AnsiState m_state;
     QString m_csiParams;
     QString m_oscParams;
@@ -188,3 +195,4 @@ private:
 };
 
 #endif
+
