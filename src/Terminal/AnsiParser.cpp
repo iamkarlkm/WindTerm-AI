@@ -519,3 +519,121 @@ void AnsiParser::handleCsiScrollDown(const QString& params) {
         }
     }
 }
+
+// Additional ANSI sequence handlers
+
+void AnsiParser::handleDecPrivateMode(const QString& params, bool set) {
+    int mode = params.toInt();
+    
+    switch (mode) {
+        case 6:   // Origin Mode (DECOM)
+            break;
+        case 7:   // Auto Wrap Mode (DECAWM)
+            break;
+        case 12:  // Start Blink Cursor (ATT610)
+            break;
+        case 25:  // Show Cursor (DECTCEM)
+            if (!set) {
+                // Cursor hide
+            }
+            break;
+        case 1000: // Mouse Tracking
+            break;
+        case 1002: // Button Event Mouse Tracking
+            break;
+        case 1003: // Any Event Mouse Tracking
+            break;
+        case 1004: // Send FocusIn/FocusOut Events
+            break;
+        case 1006: // SGR Mouse Mode
+            break;
+        case 1049: // Save cursor and use alternate screen buffer
+            if (set) {
+                m_savedCursorRow = m_cursorRow;
+                m_savedCursorCol = m_cursorCol;
+                m_savedStyle = m_currentStyle;
+                m_normalBuffer = m_screenBuffer;
+                m_screenBuffer = m_alternateBuffer;
+                m_useAlternateBuffer = true;
+            } else {
+                m_cursorRow = m_savedCursorRow;
+                m_cursorCol = m_savedCursorCol;
+                m_currentStyle = m_savedStyle;
+                m_normalBuffer = m_screenBuffer;
+                m_screenBuffer = m_alternateBuffer;
+                m_useAlternateBuffer = false;
+            }
+            break;
+        case 2004: // Bracketed Paste Mode
+            m_bracketedPasteMode = set;
+            break;
+    }
+}
+
+void AnsiParser::handleOscCommand(const QString& params) {
+    int semiPos = params.indexOf(';');
+    if (semiPos < 0) return;
+    
+    int oscCode = params.left(semiPos).toInt();
+    QString oscParams = params.mid(semiPos + 1);
+    
+    switch (oscCode) {
+        case 0: // Set window title
+        case 2:
+            /* emit windowTitleChanged(oscParams); */
+            break;
+        case 1: // Set icon name
+            break;
+        case 4: // Set color palette
+            parseColorPaletteChange(oscParams);
+            break;
+        case 7: // Notify
+            break;
+        case 8: // Hyperlink
+            parseHyperlink(oscParams);
+            break;
+        case 10: // Set foreground color
+        case 11: // Set background color
+        case 12: // Set cursor color
+            break;
+        case 50: // Set font
+            break;
+    }
+}
+
+void AnsiParser::parseColorPaletteChange(const QString& params) {
+    int semiPos = params.indexOf(';');
+    if (semiPos < 0) return;
+    
+    int colorIndex = params.left(semiPos).toInt();
+    QString colorSpec = params.mid(semiPos + 1);
+    
+    if (colorIndex >= 0 && colorIndex < 16) {
+        QColor color = ColorPalette::parseColor(colorSpec);
+        // Update palette if we had one stored
+    }
+}
+
+void AnsiParser::parseHyperlink(const QString& params) {
+    // OSC 8 ; params ; URI ST
+    int semiPos = params.indexOf(';');
+    if (semiPos < 0) return;
+    
+    QString id = params.left(semiPos);
+    QString uri = params.mid(semiPos + 1);
+    
+    m_currentStyle.hyperlink = uri;
+}
+
+void AnsiParser::handleDcsSequence(const QString& params) {
+    // Device Control String
+    if (params.startsWith("+q")) {
+        // Request terminal capabilities
+        // Response with DA (Device Attributes)
+    }
+}
+
+void AnsiParser::handleApcSequence(const QString& params) {
+    // Application Program Command
+    // Used for custom extensions
+}

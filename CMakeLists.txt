@@ -281,10 +281,12 @@ if(BUILD_THEME)
     message(STATUS "Building Theme Module")
     
     add_library(WindTermTheme STATIC
-        src/Theme/ThemeConfig.h
-        src/Theme/ThemeConfig.cpp
-        src/Theme/ThemeManager.h
         src/Theme/ThemeManager.cpp
+        src/Theme/ThemeManager.h
+        src/Theme/ThemeConfig.cpp
+        src/Theme/ThemeConfig.h
+        src/Theme/TerminalTheme.cpp
+        src/Theme/TerminalTheme.h
     )
     
     target_include_directories(WindTermTheme PUBLIC

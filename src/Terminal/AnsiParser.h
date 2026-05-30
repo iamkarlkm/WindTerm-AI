@@ -13,6 +13,7 @@ enum class AnsiState {
     Osc,
     Dcs,
     Apc
+    
 };
 
 enum class TerminalCommand {
@@ -44,6 +45,7 @@ enum class TerminalCommand {
     FullReset,
     KeypadApplicationMode,
     KeypadNumericMode
+    
 };
 
 struct AnsiCommand {
@@ -61,6 +63,7 @@ struct AnsiCommand {
         }
         return defaultValue;
     }
+    
 };
 
 enum class TextAttribute {
@@ -81,6 +84,7 @@ enum class TextAttribute {
     Background256,
     ForegroundRGB,
     BackgroundRGB
+    
 };
 
 struct TextStyle {
@@ -126,6 +130,7 @@ struct TextStyle {
     bool operator!=(const TextStyle& other) const {
         return !(*this == other);
     }
+    
 };
 
 class AnsiParser {
@@ -175,6 +180,12 @@ private:
     void handleCsiEraseLine(const QString& params);
     void handleCsiScroll(const QString& params);
     void handleCsiScrollDown(const QString& params);
+    void handleDecPrivateMode(const QString& params, bool set);
+    void handleOscCommand(const QString& params);
+    void parseColorPaletteChange(const QString& params);
+    void parseHyperlink(const QString& params);
+    void handleDcsSequence(const QString& params);
+    void handleApcSequence(const QString& params);
     
     AnsiState m_state;
     QString m_csiParams;
@@ -192,7 +203,18 @@ private:
     bool m_useAlternateBuffer;
     QVector<QVector<QPair<QChar, TextStyle>>> m_normalBuffer;
     QVector<QVector<QPair<QChar, TextStyle>>> m_alternateBuffer;
+    
+    // Saved cursor state for alternate screen buffer
+    int m_savedCursorRow;
+    int m_savedCursorCol;
+    TextStyle m_savedStyle;
+    
+    // Mode flags
+    bool m_bracketedPasteMode;
+    bool m_cursorVisible;
+    
 };
 
 #endif
+
 
