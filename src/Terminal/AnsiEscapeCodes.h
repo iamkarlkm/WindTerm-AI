@@ -13,11 +13,11 @@ constexpr char LF  = 0x0A;
 constexpr char CR  = 0x0D;
 
 // Escape sequences
-constexpr const char* CSI = "\x1B[";
-constexpr const char* OSC  = "\x1B]";
-constexpr const char* DCS  = "\x1BP";
-constexpr const char* APC  = "\x1B_";
-constexpr const char* PM   = "\x1B^";
+constexpr const char* CSI_SEQ = "\x1B[";
+constexpr const char* OSC_SEQ  = "\x1B]";
+constexpr const char* DCS_SEQ  = "\x1BP";
+constexpr const char* APC_SEQ  = "\x1B_";
+constexpr const char* PM_SEQ   = "\x1B^";
 
 // SGR (Select Graphic Rendition) codes
 namespace SGR {

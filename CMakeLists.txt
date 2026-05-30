@@ -138,6 +138,8 @@ if(BUILD_RENDERER)
         src/Terminal/TerminalSession.cpp
         src/Terminal/TerminalSession.h
         src/Terminal/AnsiEscapeCodes.h
+        src/Terminal/ColorPalette.cpp
+        src/Terminal/ColorPalette.h
     )
     
     target_include_directories(WindTermTerminal PUBLIC

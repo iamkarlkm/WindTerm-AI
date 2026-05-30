@@ -1,4 +1,6 @@
 #include "AnsiParser.h"
+#include "ColorPalette.h"
+#include "AnsiEscapeCodes.h"
 #include <QDebug>
 
 AnsiParser::AnsiParser()
@@ -334,42 +336,15 @@ void AnsiParser::applyGraphicsMode(const QVector<int>& params) {
             case 36: m_currentStyle.foreground = QColor(0, 205, 205); break;
             case 37: m_currentStyle.foreground = QColor(229, 229, 229); break;
             case 38:
-                if (i + 1 < params.size() && params[i + 1] == 5) {
+                if (i + 1 < params.size() && params[i + 1] == AnsiCodes::SGR::COLOR_256_SUBCODE) {
                     if (i + 2 < params.size()) {
                         int colorIndex = params[i + 2];
-                        if (colorIndex >= 0 && colorIndex < 256) {
-                            QColor c;
-                            if (colorIndex < 8) {
-                                static const QColor stdColors[] = {
-                                    QColor(0, 0, 0), QColor(205, 0, 0), QColor(0, 205, 0),
-                                    QColor(205, 205, 0), QColor(0, 0, 238), QColor(205, 0, 205),
-                                    QColor(0, 205, 205), QColor(229, 229, 229)
-                                };
-                                c = stdColors[colorIndex];
-                            } else if (colorIndex < 16) {
-                                static const QColor brightColors[] = {
-                                    QColor(127, 127, 127), QColor(255, 0, 0), QColor(0, 255, 0),
-                                    QColor(255, 255, 0), QColor(92, 92, 255), QColor(255, 0, 255),
-                                    QColor(0, 255, 255), QColor(255, 255, 255)
-                                };
-                                c = brightColors[colorIndex - 8];
-                            } else if (colorIndex < 232) {
-                                int idx = colorIndex - 16;
-                                int r = (idx / 36) * 51;
-                                int g = ((idx / 6) % 6) * 51;
-                                int b = (idx % 6) * 51;
-                                c = QColor(r, g, b);
-                            } else {
-                                int gray = (colorIndex - 232) * 10 + 8;
-                                c = QColor(gray, gray, gray);
-                            }
-                            m_currentStyle.foreground = c;
-                        }
+                        m_currentStyle.foreground = ColorPalette::get256Color(colorIndex);
                         i += 2;
                     }
-                } else if (i + 1 < params.size() && params[i + 1] == 2) {
+                } else if (i + 1 < params.size() && params[i + 1] == AnsiCodes::SGR::COLOR_TRUECOLOR_SUBCODE) {
                     if (i + 4 < params.size()) {
-                        m_currentStyle.foreground = QColor(params[i + 2], params[i + 3], params[i + 4]);
+                        m_currentStyle.foreground = ColorPalette::getTrueColor(params[i + 2], params[i + 3], params[i + 4]);
                         i += 4;
                     }
                 }
@@ -385,42 +360,15 @@ void AnsiParser::applyGraphicsMode(const QVector<int>& params) {
             case 46: m_currentStyle.background = QColor(0, 205, 205); break;
             case 47: m_currentStyle.background = QColor(229, 229, 229); break;
             case 48:
-                if (i + 1 < params.size() && params[i + 1] == 5) {
+                if (i + 1 < params.size() && params[i + 1] == AnsiCodes::SGR::COLOR_256_SUBCODE) {
                     if (i + 2 < params.size()) {
                         int colorIndex = params[i + 2];
-                        if (colorIndex >= 0 && colorIndex < 256) {
-                            QColor c;
-                            if (colorIndex < 8) {
-                                static const QColor stdColors[] = {
-                                    QColor(0, 0, 0), QColor(205, 0, 0), QColor(0, 205, 0),
-                                    QColor(205, 205, 0), QColor(0, 0, 238), QColor(205, 0, 205),
-                                    QColor(0, 205, 205), QColor(229, 229, 229)
-                                };
-                                c = stdColors[colorIndex];
-                            } else if (colorIndex < 16) {
-                                static const QColor brightColors[] = {
-                                    QColor(127, 127, 127), QColor(255, 0, 0), QColor(0, 255, 0),
-                                    QColor(255, 255, 0), QColor(92, 92, 255), QColor(255, 0, 255),
-                                    QColor(0, 255, 255), QColor(255, 255, 255)
-                                };
-                                c = brightColors[colorIndex - 8];
-                            } else if (colorIndex < 232) {
-                                int idx = colorIndex - 16;
-                                int r = (idx / 36) * 51;
-                                int g = ((idx / 6) % 6) * 51;
-                                int b = (idx % 6) * 51;
-                                c = QColor(r, g, b);
-                            } else {
-                                int gray = (colorIndex - 232) * 10 + 8;
-                                c = QColor(gray, gray, gray);
-                            }
-                            m_currentStyle.background = c;
-                        }
+                        m_currentStyle.background = ColorPalette::get256Color(colorIndex);
                         i += 2;
                     }
-                } else if (i + 1 < params.size() && params[i + 1] == 2) {
+                } else if (i + 1 < params.size() && params[i + 1] == AnsiCodes::SGR::COLOR_TRUECOLOR_SUBCODE) {
                     if (i + 4 < params.size()) {
-                        m_currentStyle.background = QColor(params[i + 2], params[i + 3], params[i + 4]);
+                        m_currentStyle.background = ColorPalette::getTrueColor(params[i + 2], params[i + 3], params[i + 4]);
                         i += 4;
                     }
                 }
