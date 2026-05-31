@@ -42,6 +42,23 @@ if(BUILD_RENDERER)
         src/Renderer/DirectX12Renderer.cpp
         src/Renderer/VulkanRenderer.cpp
         src/Utils/UnicodeUtil.cpp
+        src/Utils/PerformanceMonitor.cpp
+    )
+    
+    set(RENDERER_HEADERS
+        src/Renderer/GPURenderer.h
+        src/Renderer/SoftwareRenderer.h
+        src/Renderer/OpenGLRenderer.h
+        src/Renderer/PlatformDetector.h
+        src/Renderer/RendererFactory.h
+        src/Renderer/SDFGlyphGenerator.h
+        src/Renderer/SDFShader.h
+        src/Renderer/DirectX12Renderer.h
+        src/Renderer/VulkanRenderer.h
+        src/Renderer/d3dx12_simple.h
+        src/Utils/UnicodeUtil.h
+        src/Utils/PerformanceMonitor.h
+        src/Widget/BatchRenderer.h
     )
     
     set(RENDERER_HEADERS
@@ -394,6 +411,10 @@ if(BUILD_WIDGET)
         src/Widget/TerminalRecording.h
         src/Widget/TerminalSearchEngine.cpp
         src/Widget/TerminalSearchEngine.h
+        src/Widget/BatchRenderer.cpp
+        src/Widget/BatchRenderer.h
+        src/Session/SessionManager.cpp
+        src/Session/SessionManager.h
     )
     
     target_include_directories(WindTermWidget PUBLIC
