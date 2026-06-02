@@ -1,5 +1,5 @@
 #include "PerformanceBenchmark.h"
-#include "Renderer/PlatformDetector.h"
+#include "../src/Renderer/PlatformDetector.h"
 #include <QDebug>
 #include <QFile>
 #include <QTextStream>
