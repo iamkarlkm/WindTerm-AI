@@ -18,6 +18,10 @@ add_library(WindTermWidget STATIC
     ShortcutManager.cpp
     BatchRenderer.h
     BatchRenderer.cpp
+    NotificationManager.h
+    NotificationManager.cpp
+    CommandPalette.h
+    CommandPalette.cpp
 )
 
 target_link_libraries(WindTermWidget PUBLIC
