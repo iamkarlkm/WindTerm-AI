@@ -28,6 +28,8 @@ add_library(WindTermWidget STATIC
     WorkspaceManager.cpp
     QuickConnectPanel.h
     QuickConnectPanel.cpp
+    SynchronizedInput.h
+    SynchronizedInput.cpp
 )
 
 target_link_libraries(WindTermWidget PUBLIC
