@@ -22,6 +22,10 @@ add_library(WindTermWidget STATIC
     NotificationManager.cpp
     CommandPalette.h
     CommandPalette.cpp
+    TabBar.h
+    TabBar.cpp
+    WorkspaceManager.h
+    WorkspaceManager.cpp
 )
 
 target_link_libraries(WindTermWidget PUBLIC
