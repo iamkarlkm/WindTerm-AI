@@ -26,6 +26,8 @@ add_library(WindTermWidget STATIC
     TabBar.cpp
     WorkspaceManager.h
     WorkspaceManager.cpp
+    QuickConnectPanel.h
+    QuickConnectPanel.cpp
 )
 
 target_link_libraries(WindTermWidget PUBLIC
