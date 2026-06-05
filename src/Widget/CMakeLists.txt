@@ -37,6 +37,7 @@ target_link_libraries(WindTermWidget PUBLIC
     WindTermBuffer
     WindTermRenderer
     WindTermSsh
+    WindTermBookmarks
     Qt5::Core
     Qt5::Widgets
     Qt5::Network
