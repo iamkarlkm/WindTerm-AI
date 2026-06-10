@@ -2,6 +2,8 @@
 add_library(WindTermAIAssist STATIC
     CommandCompletion.h
     CommandCompletion.cpp
+    AIAssistManager.h
+    AIAssistManager.cpp
 )
 
 target_link_libraries(WindTermAIAssist PUBLIC
