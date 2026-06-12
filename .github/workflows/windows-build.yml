@@ -1,0 +1,85 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        build-type: [Release, Debug]
+        qt-version: [5.15.2]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 1
+    
+    - name: Setup Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ matrix.qt-version }}
+        host: windows
+        target: desktop
+        arch: win64_msvc2019_64
+        modules: qtwebsockets qtnetworkauth
+    
+    - name: Setup Visual Studio
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Setup CMake
+      uses: lukka/get-cmake@latest
+    
+    - name: Configure CMake
+      working-directory: ${{ github.workspace }}
+      run: |
+        cmake -B build `
+          -G "Visual Studio 16 2019" `
+          -A x64 `
+          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} `
+          -DBUILD_TESTS=ON `
+          -DBUILD_RENDERER=ON `
+          -DBUILD_BUFFER=ON `
+          -DBUILD_WIDGET=ON `
+          -DBUILD_APPLICATION=ON `
+          -DBUILD_PLUGINS=ON `
+          -DENABLE_METAL=OFF `
+          -DENABLE_OPENGL=ON `
+          -DENABLE_DIRECTX12=ON `
+          -DENABLE_VULKAN=OFF
+    
+    - name: Build Project
+      working-directory: ${{ github.workspace }}/build
+      run: |
+        cmake --build . `
+          --config ${{ matrix.build-type }} `
+          --parallel $env:NUMBER_OF_PROCESSORS
+    
+    - name: Run Tests
+      working-directory: ${{ github.workspace }}/build
+      run: |
+        ctest --output-on-failure --build-config ${{ matrix.build-type }}
+      continue-on-error: true
+    
+    - name: Package Artifacts
+      working-directory: ${{ github.workspace }}/build
+      if: matrix.build-type == 'Release'
+      run: |
+        mkdir -p artifacts
+        copy bin\${{ matrix.build-type }}\*.exe artifacts\
+        copy bin\${{ matrix.build-type }}\*.dll artifacts\
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      if: matrix.build-type == 'Release'
+      with:
+        name: windterm-extensions-windows-${{ matrix.build-type }}
+        path: build/artifacts/
+        retention-days: 7
