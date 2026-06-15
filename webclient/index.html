@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WindTerm AI - Web Terminal Client</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 顶栏 -->
+    <header id="topbar">
+      <div class="brand">
+        <i class="fa-solid fa-terminal"></i>
+        <span>WindTerm AI</span>
+      </div>
+      <div class="connection-bar">
+        <input type="text" id="hostInput" placeholder="主机地址" value="localhost">
+        <input type="number" id="portInput" placeholder="端口" value="22">
+        <input type="text" id="userInput" placeholder="用户名">
+        <input type="text" id="tokenInput" placeholder="认证令牌" style="width:140px">
+        <button id="connectBtn" class="btn-primary"><i class="fa-solid fa-plug"></i> 连接</button>
+      </div>
+      <div class="actions">
+        <button id="toggleSnippets" class="btn-icon" title="碎片笔记"><i class="fa-solid fa-note-sticky"></i></button>
+        <button id="newTabBtn" class="btn-icon" title="新建标签"><i class="fa-solid fa-plus"></i></button>
+      </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <div id="mainArea">
+      <!-- 左侧终端面板 -->
+      <div id="terminalPanel">
+        <div id="tabBar">
+          <div id="tabList"></div>
+          <div id="tabSpacer"></div>
+        </div>
+        <div id="terminalContainer">
+          <div id="terminalHint">
+            <div class="hint-icon"><i class="fa-solid fa-terminal fa-3x"></i></div>
+            <h2>未连接</h2>
+            <p>在顶部输入主机地址、端口和认证令牌，然后点击连接</p>
+            <div class="hint-connection">
+              <div class="hint-item"><i class="fa-solid fa-globe"></i> 输入目标主机</div>
+              <div class="hint-item"><i class="fa-solid fa-key"></i> 输入认证令牌</div>
+              <div class="hint-item"><i class="fa-solid fa-plug"></i> 点击连接建立会话</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧碎片笔记面板 -->
+      <div id="snippetPanel" class="hidden">
+        <div id="snippetHeader">
+          <h3><i class="fa-solid fa-note-sticky"></i> 碎片笔记</h3>
+          <div>
+            <button id="newSnippetBtn" class="btn-sm"><i class="fa-solid fa-plus"></i> 新建</button>
+            <button id="closeSnippetsBtn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div id="snippetList"></div>
+        <div id="snippetEditor">
+          <input type="text" id="snippetTitle" placeholder="笔记标题...">
+          <div id="snippetToolbar">
+            <button class="btn-toolbar" data-cmd="bold" title="粗体"><i class="fa-solid fa-bold"></i></button>
+            <button class="btn-toolbar" data-cmd="italic" title="斜体"><i class="fa-solid fa-italic"></i></button>
+            <button class="btn-toolbar" data-cmd="underline" title="下划线"><i class="fa-solid fa-underline"></i></button>
+            <button class="btn-toolbar" data-cmd="strikeThrough" title="删除线"><i class="fa-solid fa-strikethrough"></i></button>
+            <span class="toolbar-sep"></span>
+            <button class="btn-toolbar" data-cmd="insertUnorderedList" title="无序列表"><i class="fa-solid fa-list-ul"></i></button>
+            <button class="btn-toolbar" data-cmd="insertOrderedList" title="有序列表"><i class="fa-solid fa-list-ol"></i></button>
+            <button class="btn-toolbar" data-cmd="formatBlock" data-arg="pre" title="代码块"><i class="fa-solid fa-code"></i></button>
+            <button class="btn-toolbar" data-cmd="createLink" title="链接"><i class="fa-solid fa-link"></i></button>
+            <span class="toolbar-sep"></span>
+            <button class="btn-toolbar" data-cmd="foreColor" data-arg="#e06c75" title="红色"><i class="fa-solid fa-palette" style="color:#e06c75"></i></button>
+            <button class="btn-toolbar" data-cmd="foreColor" data-arg="#98c379" title="绿色"><i class="fa-solid fa-palette" style="color:#98c379"></i></button>
+            <button class="btn-toolbar" data-cmd="foreColor" data-arg="#61afef" title="蓝色"><i class="fa-solid fa-palette" style="color:#61afef"></i></button>
+            <button class="btn-toolbar" data-cmd="removeFormat" title="清除格式"><i class="fa-solid fa-eraser"></i></button>
+          </div>
+          <div id="snippetContent" contenteditable="true" placeholder="在此输入笔记内容..."></div>
+          <div id="snippetActions">
+            <button id="saveSnippetBtn" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+            <button id="deleteSnippetBtn" class="btn-danger"><i class="fa-solid fa-trash"></i> 删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <footer id="statusbar">
+      <div class="status-left">
+        <span id="statusIndicator" class="status-dot disconnected"></span>
+        <span id="statusText">未连接</span>
+      </div>
+      <div class="status-right">
+        <span id="tabCount">0 个标签</span>
+        <span id="snippetCount">0 条笔记</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div id="contextMenu" class="hidden">
+    <div class="menu-item" data-action="copy"><i class="fa-solid fa-copy"></i> 复制</div>
+    <div class="menu-item" data-action="paste"><i class="fa-solid fa-paste"></i> 粘贴</div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="clear"><i class="fa-solid fa-eraser"></i> 清除终端</div>
+    <div class="menu-item" data-action="saveSnippet"><i class="fa-solid fa-note-sticky"></i> 保存为笔记</div>
+  </div>
+
+  <!-- xterm.js -->
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/file/master/tauri.conf.json",
+  "productName": "WindTerm AI",
+  "version": "1.0.0",
+  "identifier": "com.windterm.webclient",
+  "build": {
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "",
+    "frontendDist": ".."
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "WindTerm AI - Web Terminal Client",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 500,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
+    },
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https:;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

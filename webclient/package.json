@@ -1,0 +1,10 @@
+{
+  "name": "windterm-webclient",
+  "version": "1.0.0",
+  "description": "WindTerm AI Web Terminal Client",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python3 -m http.server 3000",
+    "tauri": "tauri"
+  }
+}
