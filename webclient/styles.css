@@ -258,5 +258,90 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sa
 /* 响应式 */
 @media (max-width: 800px) {
   .connection-bar { flex-wrap: wrap; }
-  #snippetPanel { width: 280px; }
+  .connection-bar input { flex: 1 1 auto; min-width: 60px; }
+  #hostInput { min-width: 100px; }
+  #snippetPanel { position: fixed; right: 0; top: 48px; bottom: 28px; width: 100% !important; max-width: 380px; z-index: 50; }
+  #snippetPanel.hidden { display: none; }
+  #sessionSidebar { position: fixed; left: 0; top: 48px; bottom: 28px; width: 100% !important; max-width: 300px; z-index: 50; }
+  #sessionSidebar.hidden { display: none; }
+  .mobile-only { display: inline-flex !important; }
+  .desktop-only { display: none !important; }
+  .brand span { display: none; }
+  #topbar { gap: 6px; padding: 6px 8px; }
 }
+
+/* 会话管理侧边栏 */
+#sessionSidebar {
+  width: 260px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; background: var(--bg-alt);
+  flex-shrink: 0; transition: width var(--transition);
+}
+#sessionSidebar.hidden { display: none; }
+
+#sessionSidebarHeader {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+#sessionSidebarHeader h3 {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 600;
+}
+
+#sessionSidebarContent { flex: 1; overflow-y: auto; }
+.sidebar-section { padding: 0; border-bottom: 1px solid var(--border); }
+.sidebar-section-title {
+  padding: 8px 14px; font-size: 11px; font-weight: 600;
+  color: var(--overlay); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.sidebar-empty {
+  padding: 12px 14px; color: var(--overlay); font-size: 12px; text-align: center;
+}
+
+.session-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; cursor: pointer; font-size: 12px;
+  transition: background var(--transition); position: relative;
+}
+.session-entry:hover { background: var(--bg-hover); }
+.session-entry .session-icon { width: 20px; text-align: center; color: var(--overlay); font-size: 12px; flex-shrink: 0; }
+.session-entry .session-info { flex: 1; min-width: 0; }
+.session-entry .session-host { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-entry .session-meta { font-size: 11px; color: var(--overlay); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-entry .session-status {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.session-status.connected { background: var(--green); }
+.session-status.disconnected { background: var(--red); }
+.session-status.connecting, .session-status.reconnecting { background: var(--yellow); animation: pulse 1s infinite; }
+.session-entry .session-actions { display: none; gap: 4px; }
+.session-entry:hover .session-actions { display: flex; }
+.session-action-btn {
+  width: 22px; height: 22px; border: none; border-radius: 4px;
+  background: transparent; color: var(--subtext); font-size: 10px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.session-action-btn:hover { background: var(--bg); }
+.session-action-btn.disconnect:hover { background: var(--red); color: var(--bg); }
+
+.history-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; cursor: pointer; font-size: 12px;
+  transition: background var(--transition);
+}
+.history-entry:hover { background: var(--bg-hover); }
+.history-entry .history-icon { color: var(--overlay); font-size: 11px; width: 20px; text-align: center; flex-shrink: 0; }
+.history-entry .history-info { flex: 1; min-width: 0; }
+.history-entry .history-host { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-entry .history-time { font-size: 10px; color: var(--overlay); }
+.history-entry .history-reconnect {
+  display: none; width: 28px; height: 24px; border: none; border-radius: 4px;
+  background: var(--accent); color: var(--bg); font-size: 10px;
+  cursor: pointer; transition: all var(--transition);
+  align-items: center; justify-content: center;
+}
+.history-entry:hover .history-reconnect { display: flex; }
+.history-reconnect:hover { background: #b4c9f8; }
+
+/* 移动端汉堡菜单 */
+.mobile-only { display: none !important; }

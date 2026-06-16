@@ -217,6 +217,7 @@ function createTab(host, port, username) {
   switchTab(tabId);
   connectTab(tabId);
   updateStatus();
+  refreshSessionSidebar();
 
   tabEl.addEventListener('click', (e) => {
     if (e.target.classList.contains('tab-close')) return;
@@ -282,6 +283,7 @@ function closeTab(tabId) {
     }
   }
   updateStatus();
+  refreshSessionSidebar();
 }
 
 // =========================== P0-4: 断线重连 + P0-5: 心跳 ===========================
@@ -461,6 +463,7 @@ function updateTabStatus(tabId, status) {
   if (!tabData) return;
   tabData.status = status;
   if (state.currentTab === tabId) updateStatus(status);
+  renderActiveSessions();
 }
 
 function updateStatus(status) {
@@ -499,6 +502,87 @@ function updateStatus(status) {
       indicator.classList.add('disconnected');
       text.textContent = '未连接';
   }
+}
+
+// =========================== 会话管理面板 ===========================
+function renderActiveSessions() {
+  const list = document.getElementById('activeSessionList');
+  if (state.tabs.size === 0) {
+    list.innerHTML = '<div class="sidebar-empty">无活跃会话</div>';
+    return;
+  }
+  list.innerHTML = [...state.tabs.entries()].map(([id, tab]) => `
+    <div class="session-entry" data-session-id="${id}">
+      <span class="session-icon"><i class="fa-solid fa-terminal"></i></span>
+      <span class="session-info">
+        <div class="session-host">${escapeText(tab.username || 'user')}@${escapeText(tab.host)}</div>
+        <div class="session-meta">${tab.port}:${escapeText(tab.sessionId || '未分配').substring(0, 12)}</div>
+      </span>
+      <span class="session-status ${tab.status}"></span>
+      <span class="session-actions">
+        <button class="session-action-btn disconnect" data-action="disconnect" data-tab-id="${id}" title="断开"><i class="fa-solid fa-plug-circle-xmark"></i></button>
+      </span>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.session-entry').forEach(el => {
+    el.addEventListener('click', () => switchTab(el.dataset.sessionId));
+  });
+  list.querySelectorAll('.session-action-btn.disconnect').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); closeTab(btn.dataset.tabId); });
+  });
+}
+
+function renderHistorySessions() {
+  const list = document.getElementById('historySessionList');
+  const connections = loadConnections();
+  if (connections.length === 0) {
+    list.innerHTML = '<div class="sidebar-empty">无连接历史</div>';
+    return;
+  }
+  list.innerHTML = connections.map((c, i) => `
+    <div class="history-entry" data-idx="${i}">
+      <span class="history-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+      <span class="history-info">
+        <div class="history-host">${escapeText(c.username || 'user')}@${escapeText(c.host)}:${c.port}</div>
+        <div class="history-time">${formatTime(c.time)}</div>
+      </span>
+      <button class="history-reconnect" data-idx="${i}" title="连接"><i class="fa-solid fa-plug"></i></button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.history-entry').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.history-reconnect')) return;
+      const idx = parseInt(el.dataset.idx);
+      const c = connections[idx];
+      if (c) {
+        document.getElementById('hostInput').value = c.host;
+        document.getElementById('portInput').value = c.port;
+        document.getElementById('userInput').value = c.username;
+        state.token = c.token || '';
+        storeToken(state.token);
+        createTab(c.host, c.port, c.username);
+      }
+    });
+  });
+  list.querySelectorAll('.history-reconnect').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      const c = connections[idx];
+      if (c) {
+        state.token = c.token || '';
+        storeToken(state.token);
+        createTab(c.host, c.port, c.username);
+      }
+    });
+  });
+}
+
+function refreshSessionSidebar() {
+  renderActiveSessions();
+  renderHistorySessions();
 }
 
 // =========================== P0-1: DOMPurify 笔记系统 ===========================
@@ -635,6 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSnippets();
   renderSnippetList();
   updateStatus();
+  refreshSessionSidebar();
 
   // 恢复最后使用的连接
   const savedConn = loadConnections();
@@ -673,6 +758,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 面板切换
+  document.getElementById('toggleSessions').addEventListener('click', () => {
+    document.getElementById('sessionSidebar').classList.toggle('hidden');
+    refreshSessionSidebar();
+  });
+  document.getElementById('closeSessionSidebarBtn').addEventListener('click', () => {
+    document.getElementById('sessionSidebar').classList.add('hidden');
+  });
   document.getElementById('toggleSnippets').addEventListener('click', () => {
     document.getElementById('snippetPanel').classList.toggle('hidden');
   });

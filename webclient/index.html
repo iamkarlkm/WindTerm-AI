@@ -32,13 +32,14 @@
         <span>WindTerm AI</span>
       </div>
       <div class="connection-bar">
-        <input type="text" id="hostInput" placeholder="主机地址" value="localhost">
-        <input type="number" id="portInput" placeholder="端口" value="22">
-        <input type="text" id="userInput" placeholder="用户名">
-        <input type="text" id="tokenInput" placeholder="认证令牌" style="width:140px">
-        <button id="connectBtn" class="btn-primary"><i class="fa-solid fa-plug"></i> 连接</button>
+        <input type="text" id="hostInput" placeholder="主机" value="localhost" title="主机地址">
+        <input type="number" id="portInput" placeholder="端口" value="22" class="desktop-only" title="端口">
+        <input type="text" id="userInput" placeholder="用户" class="desktop-only" title="用户名">
+        <input type="text" id="tokenInput" placeholder="令牌" style="width:110px" title="认证令牌">
+        <button id="connectBtn" class="btn-primary"><i class="fa-solid fa-plug"></i> <span class="desktop-only">连接</span></button>
       </div>
       <div class="actions">
+        <button id="toggleSessions" class="btn-icon" title="会话管理"><i class="fa-solid fa-server"></i></button>
         <button id="toggleSnippets" class="btn-icon" title="碎片笔记"><i class="fa-solid fa-note-sticky"></i></button>
         <button id="newTabBtn" class="btn-icon" title="新建标签"><i class="fa-solid fa-plus"></i></button>
       </div>
@@ -46,6 +47,28 @@
 
     <!-- 主内容区 -->
     <div id="mainArea">
+      <!-- 左侧会话管理面板 -->
+      <div id="sessionSidebar" class="hidden">
+        <div id="sessionSidebarHeader">
+          <h3><i class="fa-solid fa-server"></i> 会话管理</h3>
+          <button id="closeSessionSidebarBtn" class="btn-icon" title="关闭面板"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="sessionSidebarContent">
+          <div class="sidebar-section">
+            <div class="sidebar-section-title">活跃会话</div>
+            <div id="activeSessionList">
+              <div class="sidebar-empty">无活跃会话</div>
+            </div>
+          </div>
+          <div class="sidebar-section">
+            <div class="sidebar-section-title">连接历史</div>
+            <div id="historySessionList">
+              <div class="sidebar-empty">无连接历史</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 左侧终端面板 -->
       <div id="terminalPanel">
         <div id="tabBar">
