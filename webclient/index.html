@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WindTerm AI - Web Terminal Client</title>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             connect-src 'self' ws: wss:;
+             style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+             script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+             font-src 'self' https://cdn.jsdelivr.net;
+             img-src 'self' data: https: blob:;
+             media-src 'none';
+             frame-src 'none';
+             object-src 'none';
+             base-uri 'self';
+             form-action 'self';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="styles.css" />
@@ -110,10 +125,12 @@
     <div class="menu-item" data-action="saveSnippet"><i class="fa-solid fa-note-sticky"></i> 保存为笔记</div>
   </div>
 
-  <!-- xterm.js -->
+  <!-- 依赖库 -->
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.0/dist/purify.min.js"></script>
+  <!-- 应用逻辑 -->
   <script src="app.js"></script>
 </body>
 </html>

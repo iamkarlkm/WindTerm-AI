@@ -229,6 +229,8 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sa
 }
 .status-dot.connected { background: var(--green); }
 .status-dot.disconnected { background: var(--red); }
+.status-dot.reconnecting { background: var(--yellow); animation: pulse 1s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .status-right { display: flex; gap: 16px; }
 
 /* 右键菜单 */

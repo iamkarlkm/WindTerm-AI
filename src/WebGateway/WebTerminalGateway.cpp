@@ -11,7 +11,10 @@ WebTerminalGateway* WebTerminalGateway::s_instance = nullptr;
 WebTerminalGateway::WebTerminalGateway(QObject* parent) : QObject(parent) {
     m_webSocketServer = new QWebSocketServer("WindTerm Web Gateway", QWebSocketServer::NonSecureMode, this);
     connect(m_webSocketServer, &QWebSocketServer::newConnection, this, &WebTerminalGateway::onNewConnection);
-    
+    connect(m_webSocketServer, &QWebSocketServer::serverError, this, [this](QWebSocketProtocol::CloseCode code) {
+        Q_UNUSED(code)
+        emit errorOccurred(m_webSocketServer->errorString());
+    });
     // 定期清理过期会话
     QTimer* cleanupTimer = new QTimer(this);
     connect(cleanupTimer, &QTimer::timeout, this, &WebTerminalGateway::cleanupExpiredSessions);
@@ -27,8 +30,20 @@ WebTerminalGateway* WebTerminalGateway::instance() {
     return s_instance;
 }
 
-bool WebTerminalGateway::start(quint16 port) {
+bool WebTerminalGateway::start(quint16 port, bool secure) {
+    // 如果需要 WSS，需要设置 SSL 配置
+    if (secure) {
+        m_webSocketServer->deleteLater();
+        m_webSocketServer = new QWebSocketServer("WindTerm Web Gateway (Secure)", QWebSocketServer::SecureMode, this);
+        // SSL 配置需要在应用层面设置
+        QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+        sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
+        m_webSocketServer->setSslConfiguration(sslConfig);
+        connect(m_webSocketServer, &QWebSocketServer::newConnection, this, &WebTerminalGateway::onNewConnection);
+    }
+    
     if (m_webSocketServer->listen(QHostAddress::Any, port)) {
+        m_secure = secure;
         emit serverStarted(port);
         return true;
     }
@@ -60,6 +75,10 @@ bool WebTerminalGateway::isRunning() const {
 
 quint16 WebTerminalGateway::port() const {
     return m_webSocketServer->serverPort();
+}
+
+bool WebTerminalGateway::isSecure() const {
+    return m_secure;
 }
 
 QString WebTerminalGateway::createSession(const QString& host, int sshPort, const QString& username) {
@@ -187,6 +206,11 @@ void WebTerminalGateway::onTextMessageReceived(const QString& message) {
         handleResize(socket, request);
     } else if (action == "input") {
         handleInput(socket, request);
+    } else if (action == "ping") {
+        // 心跳响应
+        QJsonObject pong;
+        pong["type"] = "pong";
+        sendResponse(socket, pong);
     } else {
         sendError(socket, "Unknown action: " + action, 400);
     }

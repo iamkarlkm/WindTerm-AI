@@ -31,10 +31,11 @@ public:
     ~WebTerminalGateway();
 
     // 服务器控制
-    bool start(quint16 port = 8080);
+    bool start(quint16 port = 8080, bool secure = false);
     void stop();
     bool isRunning() const;
     quint16 port() const;
+    bool isSecure() const;
 
     // 会话管理
     QString createSession(const QString& host, int sshPort = 22, const QString& username = "");
@@ -99,6 +100,7 @@ private:
     int m_maxConnections = 100;
     int m_sessionTimeout = 60;  // minutes
     bool m_authenticationEnabled = true;
+    bool m_secure = false;
     
     // 静态实例
     static WebTerminalGateway* s_instance;
