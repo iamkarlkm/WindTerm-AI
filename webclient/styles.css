@@ -19,6 +19,25 @@
   --transition: 0.2s ease;
 }
 
+/* P2-2: 亮色主题 */
+:root.light-theme {
+  --bg: #eff1f5;
+  --bg-alt: #e6e9ef;
+  --bg-hover: #ccd0da;
+  --surface: #bcc0cc;
+  --text: #4c4f69;
+  --subtext: #6c6f85;
+  --overlay: #9ca0b0;
+  --border: #ccd0da;
+  --accent: #1e66f5;
+  --accent-alt: #04a5e5;
+  --green: #40a02b;
+  --red: #d20f39;
+  --yellow: #df8e1d;
+  --blue: #1e66f5;
+  --purple: #8839ef;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 
@@ -124,6 +143,10 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sa
   font-size: 10px; cursor: pointer; transition: all var(--transition);
 }
 .tab-close:hover { background: var(--red); color: var(--bg); }
+
+/* P2-1: 拖拽排序 */
+.tab-item.dragging { opacity: 0.4; }
+.tab-item.drag-over { border-left: 2px solid var(--accent); }
 
 /* 终端容器 */
 #terminalContainer {

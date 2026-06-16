@@ -86,6 +86,149 @@ const RECONNECT_MAX_DELAY = 30000;
 const HEARTBEAT_INTERVAL = 30000;
 const HEARTBEAT_TIMEOUT = 10000;
 
+// =========================== P2-2: 国际化 ===========================
+
+const messages: Record<string, Record<string, string>> = {
+  zh: {
+    disconnected: '未连接',
+    connecting: '连接中...',
+    connected: '已连接',
+    reconnecting: '重连中...',
+    connectionError: '连接错误',
+    tabs: '个标签',
+    notes: '条笔记',
+    activeSessions: '活跃会话',
+    noActiveSessions: '无活跃会话',
+    connectionHistory: '连接历史',
+    noConnectionHistory: '无连接历史',
+    noNotes: '暂无笔记',
+    unsavedConfirm: '有未保存的笔记，确定离开吗？',
+    heartbeatTimeout: '[心跳超时，连接可能已断开]',
+    reconnectingMsg: '[重新连接中 ({0}/{1})...]',
+    maxRetries: '[已达到最大重试次数]',
+    disconnectedMsg: '[{0} - 连接已断开]',
+    sessionClosed: '[会话已关闭]',
+    authFailed: '[认证失败 (401)]: 令牌无效或已过期，请更新令牌后重试。',
+    forbidden: '[无权限 (403)]: 拒绝访问，请联系管理员。',
+    notFound: '[未找到 (404)]: 请求的会话不存在，请创建新会话。',
+    serverError: '[服务器错误 (500)]: 网关内部错误，请稍后重试。',
+    gatewayError: '[网关错误 (502)]: 后端服务不可用，请稍后重试。',
+    unknownError: '[错误 ({0})]: {1}',
+    justNow: '刚刚',
+    minutesAgo: '{0} 分钟前',
+    hoursAgo: '{0} 小时前',
+    untitledNote: '未命名笔记',
+    terminalExcerpt: '终端摘录',
+    unsaved: '未保存',
+    sessionPanel: '会话管理',
+    snippetPanel: '碎片笔记',
+    switchTheme: '切换主题',
+    fullscreen: '全屏',
+    exitFullscreen: '退出全屏',
+    switchLang: 'Switch to English',
+    newTab: '新建标签',
+    closePanel: '关闭面板',
+  },
+  en: {
+    disconnected: 'Disconnected',
+    connecting: 'Connecting...',
+    connected: 'Connected',
+    reconnecting: 'Reconnecting...',
+    connectionError: 'Connection Error',
+    tabs: 'tabs',
+    notes: 'notes',
+    activeSessions: 'Active Sessions',
+    noActiveSessions: 'No active sessions',
+    connectionHistory: 'Connection History',
+    noConnectionHistory: 'No connection history',
+    noNotes: 'No notes',
+    unsavedConfirm: 'You have unsaved notes. Leave anyway?',
+    heartbeatTimeout: '[Heartbeat timeout, connection may be lost]',
+    reconnectingMsg: '[Reconnecting ({0}/{1})...]',
+    maxRetries: '[Max retry attempts reached]',
+    disconnectedMsg: '[{0} - Disconnected]',
+    sessionClosed: '[Session closed]',
+    authFailed: '[Auth Failed (401)]: Invalid or expired token. Please update and retry.',
+    forbidden: '[Forbidden (403)]: Access denied. Contact admin.',
+    notFound: '[Not Found (404)]: Session does not exist. Create a new session.',
+    serverError: '[Server Error (500)]: Internal gateway error. Please retry.',
+    gatewayError: '[Gateway Error (502)]: Backend unavailable. Please retry.',
+    unknownError: '[Error ({0})]: {1}',
+    justNow: 'just now',
+    minutesAgo: '{0} min ago',
+    hoursAgo: '{0} hr ago',
+    untitledNote: 'Untitled Note',
+    terminalExcerpt: 'Terminal Excerpt',
+    unsaved: 'Unsaved',
+    sessionPanel: 'Session Manager',
+    snippetPanel: 'Snippets',
+    switchTheme: 'Switch Theme',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit Fullscreen',
+    switchLang: '切换到中文',
+    newTab: 'New Tab',
+    closePanel: 'Close Panel',
+  },
+};
+
+let currentLang: string = (() => {
+  const saved = localStorage.getItem('windterm_lang');
+  if (saved === 'en' || saved === 'zh') return saved;
+  return navigator.language.startsWith('zh') ? 'zh' : 'en';
+})();
+
+function t(key: string, ...args: (string | number)[]): string {
+  const msg = (messages[currentLang]?.[key] || messages.zh[key] || key);
+  return msg.replace(/\{(\d+)\}/g, (_, i) => String(args[parseInt(i)] ?? ''));
+}
+
+function toggleLanguage(): void {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('windterm_lang', currentLang);
+}
+
+// =========================== 主题管理 ===========================
+
+function toggleTheme(): void {
+  document.documentElement.classList.toggle('light-theme');
+  const isLight = document.documentElement.classList.contains('light-theme');
+  localStorage.setItem('windterm_theme', isLight ? 'light' : 'dark');
+  const icon = $('toggleTheme')?.querySelector('i');
+  if (icon) {
+    icon.className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  }
+}
+
+function initTheme(): void {
+  const saved = localStorage.getItem('windterm_theme');
+  if (saved === 'light') {
+    document.documentElement.classList.add('light-theme');
+    const icon = $('toggleTheme')?.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-sun';
+  }
+}
+
+// =========================== 全屏管理 ===========================
+
+function toggleFullscreen(): void {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+    const icon = $('toggleFullscreen')?.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-expand';
+  } else {
+    document.documentElement.requestFullscreen();
+    const icon = $('toggleFullscreen')?.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-compress';
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const icon = $('toggleFullscreen')?.querySelector('i');
+  if (icon) {
+    icon.className = document.fullscreenElement ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+  }
+});
+
 // =========================== 状态管理 ===========================
 
 const state: AppState = {
@@ -352,6 +495,29 @@ function createTab(host: string, port: string, username: string): string {
     closeTab(tabId);
   });
 
+  // P2-1: 标签页拖拽排序
+  tabEl.draggable = true;
+  tabEl.addEventListener('dragstart', () => { tabEl.classList.add('dragging'); });
+  tabEl.addEventListener('dragend', () => { document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('dragging', 'drag-over')); });
+  tabEl.addEventListener('dragover', (e) => { e.preventDefault(); tabEl.classList.add('drag-over'); });
+  tabEl.addEventListener('dragleave', () => { tabEl.classList.remove('drag-over'); });
+  tabEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    tabEl.classList.remove('drag-over');
+    const dragging = document.querySelector('.tab-item.dragging');
+    if (dragging && dragging !== tabEl) {
+      const tabList = $('tabList');
+      const items = [...tabList!.querySelectorAll('.tab-item')];
+      const fromIdx = items.indexOf(dragging);
+      const toIdx = items.indexOf(tabEl);
+      if (fromIdx < toIdx) {
+        tabList!.insertBefore(dragging, tabEl.nextSibling);
+      } else {
+        tabList!.insertBefore(dragging, tabEl);
+      }
+    }
+  });
+
   return tabId;
 }
 
@@ -457,15 +623,15 @@ function connectTab(tabId: string): void {
       const jitter = delay * 0.3 * Math.random();
       tabData.reconnectAttempts++;
       updateTabStatus(tabId, 'reconnecting');
-      tabData.terminal.writeln(`\r\n\x1b[33m[重新连接中 (${tabData.reconnectAttempts}/${RECONNECT_MAX_RETRIES})...]\x1b[0m`);
+      tabData.terminal.writeln(`\r\n\x1b[33m${t('reconnectingMsg', String(tabData.reconnectAttempts), String(RECONNECT_MAX_RETRIES))}\x1b[0m`);
 
       tabData.reconnectTimer = window.setTimeout(() => connectTab(tabId), delay + jitter);
     } else {
       updateTabStatus(tabId, 'disconnected');
       const error = diagnoseError(event, tabData);
-      tabData.terminal.writeln(`\r\n\x1b[31m[${error.title} - 连接已断开]\x1b[0m`);
+      tabData.terminal.writeln(`\r\n\x1b[31m${t('disconnectedMsg', error.title)}\x1b[0m`);
       if (tabData.reconnectAttempts >= RECONNECT_MAX_RETRIES) {
-        tabData.terminal.writeln('\x1b[33m[已达到最大重试次数]\x1b[0m');
+        tabData.terminal.writeln(`\x1b[33m${t('maxRetries')}\x1b[0m`);
       }
     }
   };
@@ -481,7 +647,7 @@ function startHeartbeat(tabId: string): void {
       tabData.ws.send(JSON.stringify({ action: 'ping' }));
 
       tabData.heartbeatTimeout = window.setTimeout(() => {
-        tabData.terminal.writeln('\r\n\x1b[33m[心跳超时，连接可能已断开]\x1b[0m');
+        tabData.terminal.writeln(`\r\n\x1b[33m${t('heartbeatTimeout')}\x1b[0m`);
         tabData.ws!.close();
       }, HEARTBEAT_TIMEOUT);
     }
@@ -528,7 +694,7 @@ function handleGatewayMessage(tabId: string, msg: GatewayMessage): void {
       break;
     case 'session_closed':
       updateTabStatus(tabId, 'disconnected');
-      tabData.terminal.writeln('\r\n\x1b[31m[会话已关闭]\x1b[0m');
+      tabData.terminal.writeln(`\r\n\x1b[31m${t('sessionClosed')}\x1b[0m`);
       break;
     case 'error':
       handleGatewayError(tabId, msg);
@@ -547,27 +713,27 @@ function handleGatewayError(tabId: string, msg: GatewayMessage): void {
   let errorColor: string;
   switch (msg.code) {
     case 401:
-      errorText = '[认证失败 (401)]: 令牌无效或已过期，请更新令牌后重试。';
+      errorText = t('authFailed');
       errorColor = '33';
       break;
     case 403:
-      errorText = '[无权限 (403)]: 拒绝访问，请联系管理员。';
+      errorText = t('forbidden');
       errorColor = '33';
       break;
     case 404:
-      errorText = '[未找到 (404)]: 请求的会话不存在，请创建新会话。';
+      errorText = t('notFound');
       errorColor = '33';
       break;
     case 500:
-      errorText = '[服务器错误 (500)]: 网关内部错误，请稍后重试。';
+      errorText = t('serverError');
       errorColor = '31';
       break;
     case 502:
-      errorText = '[网关错误 (502)]: 后端服务不可用，请稍后重试。';
+      errorText = t('gatewayError');
       errorColor = '31';
       break;
     default:
-      errorText = `[错误 (${msg.code || '未知'})]: ${escapeText(msg.error || '未知错误')}`;
+      errorText = t('unknownError', String(msg.code || '未知'), escapeText(msg.error || '未知错误'));
       errorColor = '31';
   }
   tabData.terminal.writeln(`\r\n\x1b[${errorColor}m${errorText}\x1b[0m`);
@@ -589,8 +755,8 @@ function updateStatus(status?: ConnectionStatus): void {
   const tabCount = $('tabCount');
   const snippetCount = $('snippetCount');
 
-  if (tabCount) tabCount.textContent = `${state.tabs.size} 个标签`;
-  if (snippetCount) snippetCount.textContent = `${state.snippets.length} 条笔记`;
+  if (tabCount) tabCount.textContent = `${state.tabs.size} ${t('tabs')}`;
+  if (snippetCount) snippetCount.textContent = `${state.snippets.length} ${t('notes')}`;
 
   if (!status) {
     const tabData = state.tabs.get(state.currentTab || '');
@@ -602,23 +768,23 @@ function updateStatus(status?: ConnectionStatus): void {
     switch (status) {
       case 'connected':
         indicator.classList.add('connected');
-        if (text) text.textContent = '已连接';
+        if (text) text.textContent = t('connected');
         break;
       case 'connecting':
         indicator.classList.add('disconnected');
-        if (text) text.textContent = '连接中...';
+        if (text) text.textContent = t('connecting');
         break;
       case 'reconnecting':
         indicator.classList.add('reconnecting');
-        if (text) text.textContent = '重连中...';
+        if (text) text.textContent = t('reconnecting');
         break;
       case 'error':
         indicator.classList.add('disconnected');
-        if (text) text.textContent = '连接错误';
+        if (text) text.textContent = t('connectionError');
         break;
       default:
         indicator.classList.add('disconnected');
-        if (text) text.textContent = '未连接';
+        if (text) text.textContent = t('disconnected');
     }
   }
 }
@@ -629,7 +795,7 @@ function renderActiveSessions(): void {
   const list = $('activeSessionList');
   if (!list) return;
   if (state.tabs.size === 0) {
-    list.innerHTML = '<div class="sidebar-empty">无活跃会话</div>';
+    list.innerHTML = `<div class="sidebar-empty">${t('noActiveSessions')}</div>`;
     return;
   }
   list.innerHTML = [...state.tabs.entries()].map(([id, tab]) => `
@@ -659,7 +825,7 @@ function renderHistorySessions(): void {
   if (!list) return;
   const connections = loadConnections();
   if (connections.length === 0) {
-    list.innerHTML = '<div class="sidebar-empty">无连接历史</div>';
+    list.innerHTML = `<div class="sidebar-empty">${t('noConnectionHistory')}</div>`;
     return;
   }
   list.innerHTML = connections.map((c, i) => `
@@ -820,7 +986,7 @@ function markSnippetClean(): void { hasUnsavedSnippet = false; }
 window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
   if (hasUnsavedSnippet) {
     e.preventDefault();
-    e.returnValue = '有未保存的笔记，确定离开吗？';
+    e.returnValue = t('unsavedConfirm');
     return e.returnValue;
   }
 });
@@ -833,6 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSnippetList();
   updateStatus();
   refreshSessionSidebar();
+  initTheme();
 
   const savedConn = loadConnections();
   if (savedConn.length > 0) {
@@ -882,6 +1049,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   $('closeSnippetsBtn')?.addEventListener('click', () => {
     $('snippetPanel')?.classList.add('hidden');
+  });
+
+  // P2-2: 主题/全屏/语言切换
+  $('toggleTheme')?.addEventListener('click', toggleTheme);
+  $('toggleFullscreen')?.addEventListener('click', toggleFullscreen);
+  $('toggleLang')?.addEventListener('click', () => {
+    toggleLanguage();
+    updateStatus();
+    refreshSessionSidebar();
   });
 
   // 笔记操作
