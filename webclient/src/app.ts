@@ -16,6 +16,7 @@ interface TabData {
   ws: WebSocket | null;
   terminal: any;
   fitAddon: any;
+  searchAddon: any;
   resizeObserver: ResizeObserver;
   status: ConnectionStatus;
   host: string;
@@ -68,6 +69,7 @@ interface AppState {
 declare const Terminal: any;
 declare const FitAddon: any;
 declare const WebLinksAddon: any;
+declare const SearchAddon: any;
 declare const DOMPurify: any;
 
 // Terminal/FitAddon types for tab data
@@ -430,8 +432,10 @@ function createTab(host: string, port: string, username: string): string {
 
   const fitAddon = new FitAddon.FitAddon();
   const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+  const searchAddon = new SearchAddon.SearchAddon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(webLinksAddon);
+  terminal.loadAddon(searchAddon);
 
   const container = $('terminalContainer');
   if (container) terminal.open(container);
@@ -471,7 +475,7 @@ function createTab(host: string, port: string, username: string): string {
   });
 
   const tabData: TabData = {
-    sessionId: null, ws: null, terminal, fitAddon, resizeObserver,
+    sessionId: null, ws: null, terminal, fitAddon, searchAddon, resizeObserver,
     status: 'connecting', host, port, username, label,
     reconnectAttempts: 0, reconnectTimer: null,
     heartbeatTimer: null, heartbeatTimeout: null,
@@ -488,7 +492,34 @@ function createTab(host: string, port: string, username: string): string {
 
   tabEl.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).classList.contains('tab-close')) return;
+    if ((e.target as HTMLElement).classList.contains('tab-rename-input')) return;
     switchTab(tabId);
+  });
+
+  // P3-2: 双击重命名标签
+  tabEl.addEventListener('dblclick', (e) => {
+    if ((e.target as HTMLElement).closest('.tab-close')) return;
+    const span = tabEl.querySelector('span');
+    if (!span || tabEl.querySelector('.tab-rename-input')) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tab-rename-input';
+    input.value = tabData.label;
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+    const finishRename = () => {
+      const newLabel = input.value.trim() || tabData.label;
+      tabData.label = newLabel;
+      const newSpan = document.createElement('span');
+      newSpan.textContent = newLabel;
+      input.replaceWith(newSpan);
+    };
+    input.addEventListener('blur', finishRename);
+    input.addEventListener('keydown', (ke) => {
+      if ((ke as KeyboardEvent).key === 'Enter') finishRename();
+      if ((ke as KeyboardEvent).key === 'Escape') { input.value = tabData.label; finishRename(); }
+    });
   });
   tabEl.querySelector('.tab-close')!.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -737,6 +768,79 @@ function handleGatewayError(tabId: string, msg: GatewayMessage): void {
       errorColor = '31';
   }
   tabData.terminal.writeln(`\r\n\x1b[${errorColor}m${errorText}\x1b[0m`);
+}
+
+// =========================== P3-1: 终端搜索 ===========================
+
+function toggleSearchBar(): void {
+  const bar = $('searchBar');
+  if (!bar) return;
+  bar.classList.toggle('hidden');
+  const input = $('searchInput') as HTMLInputElement;
+  if (!bar.classList.contains('hidden') && input) {
+    input.focus();
+    input.select();
+  } else {
+    clearSearch();
+  }
+}
+
+function performSearch(): void {
+  const input = $('searchInput') as HTMLInputElement;
+  const count = $('searchCount');
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (!tabData || !tabData.searchAddon || !input) return;
+
+  const query = input.value;
+  if (!query) {
+    tabData.searchAddon.clearDecorations();
+    if (count) count.textContent = '';
+    return;
+  }
+
+  try {
+    tabData.searchAddon.findNext(query, { caseSensitive: false, regex: false, wholeWord: false });
+  } catch { /* ignore regex errors */ }
+
+  try {
+    const resultCount = tabData.searchAddon.findPrevious(query, { caseSensitive: false, regex: false, wholeWord: false });
+    if (count && typeof resultCount === 'number') {
+      count.textContent = resultCount > 0 ? `${resultCount}` : '0';
+    }
+  } catch { if (count) count.textContent = '?'; }
+}
+
+function searchNext(): void {
+  const input = ($('searchInput') as HTMLInputElement)?.value;
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (!tabData || !tabData.searchAddon || !input) return;
+  try {
+    tabData.searchAddon.findNext(input, { caseSensitive: false, regex: false, wholeWord: false });
+  } catch { /* ignore */ }
+}
+
+function searchPrev(): void {
+  const input = ($('searchInput') as HTMLInputElement)?.value;
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (!tabData || !tabData.searchAddon || !input) return;
+  try {
+    tabData.searchAddon.findPrevious(input, { caseSensitive: false, regex: false, wholeWord: false });
+  } catch { /* ignore */ }
+}
+
+function clearSearch(): void {
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (tabData && tabData.searchAddon) {
+    try { tabData.searchAddon.clearDecorations(); } catch { /* ignore */ }
+  }
+  const count = $('searchCount');
+  if (count) count.textContent = '';
+}
+
+// =========================== P3-3: 快捷键对话框 ===========================
+
+function toggleShortcutsDialog(): void {
+  $('shortcutsDialog')?.classList.toggle('hidden');
 }
 
 // =========================== 状态更新 ===========================
@@ -991,6 +1095,58 @@ window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
   }
 });
 
+// =========================== P3-4: 设置持久化 ===========================
+
+interface UserSettings {
+  fontSize: number;
+  language: string;
+  theme: string;
+  sidebarVisible: boolean;
+}
+
+const defaultSettings: UserSettings = {
+  fontSize: 14,
+  language: 'auto',
+  theme: 'dark',
+  sidebarVisible: false,
+};
+
+function loadSettings(): UserSettings {
+  try {
+    const saved = localStorage.getItem('windterm_settings');
+    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : { ...defaultSettings };
+  } catch { return { ...defaultSettings }; }
+}
+
+function saveSettings(settings: UserSettings): void {
+  localStorage.setItem('windterm_settings', JSON.stringify(settings));
+}
+
+function exportData(): void {
+  const data = {
+    settings: loadSettings(),
+    connections: loadConnections(),
+    snippets: state.snippets,
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `windterm-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// =========================== 页面卸载清理 ===========================
+window.addEventListener('unload', () => {
+  state.tabs.forEach((tab) => {
+    if (tab.reconnectTimer) clearTimeout(tab.reconnectTimer);
+    if (tab.heartbeatTimer) clearInterval(tab.heartbeatTimer);
+    if (tab.heartbeatTimeout) clearTimeout(tab.heartbeatTimeout);
+  });
+});
+
 // =========================== 事件初始化 ===========================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1059,6 +1215,21 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStatus();
     refreshSessionSidebar();
   });
+
+  // P3-1: 搜索栏
+  $('searchInput')?.addEventListener('input', performSearch);
+  $('searchInput')?.addEventListener('keydown', (e) => {
+    const kb = e as KeyboardEvent;
+    if (kb.key === 'Enter') { kb.preventDefault(); kb.shiftKey ? searchPrev() : searchNext(); }
+    if (kb.key === 'Escape') { toggleSearchBar(); }
+  });
+  $('searchNextBtn')?.addEventListener('click', searchNext);
+  $('searchPrevBtn')?.addEventListener('click', searchPrev);
+  $('searchCloseBtn')?.addEventListener('click', toggleSearchBar);
+
+  // P3-3: 快捷键对话框
+  $('closeShortcutsBtn')?.addEventListener('click', toggleShortcutsDialog);
+  $('shortcutsDialog')?.querySelector('.dialog-overlay')?.addEventListener('click', toggleShortcutsDialog);
 
   // 笔记操作
   $('newSnippetBtn')?.addEventListener('click', () => {
@@ -1180,6 +1351,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const idx = parseInt(kb.key) - 1;
       const tabIds = [...state.tabs.keys()];
       if (idx < tabIds.length) switchTab(tabIds[idx]);
+    }
+    // P3-1: Ctrl+Shift+F 搜索
+    if ((kb.ctrlKey || kb.metaKey) && kb.shiftKey && kb.key === 'F') {
+      kb.preventDefault();
+      toggleSearchBar();
+    }
+    // P3-3: Ctrl+/ 快捷键帮助
+    if ((kb.ctrlKey || kb.metaKey) && kb.key === '/') {
+      kb.preventDefault();
+      toggleShortcutsDialog();
+    }
+    // F11 全屏
+    if (kb.key === 'F11') {
+      kb.preventDefault();
+      toggleFullscreen();
     }
   });
 

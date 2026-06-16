@@ -151,9 +151,53 @@
     <div class="menu-item" data-action="saveSnippet"><i class="fa-solid fa-note-sticky"></i> 保存为笔记</div>
   </div>
 
+  <!-- P3-1: 终端搜索栏 -->
+  <div id="searchBar" class="hidden">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="搜索...">
+      <span id="searchCount" class="search-count"></span>
+      <button id="searchPrevBtn" class="btn-icon" title="上一个"><i class="fa-solid fa-chevron-up"></i></button>
+      <button id="searchNextBtn" class="btn-icon" title="下一个"><i class="fa-solid fa-chevron-down"></i></button>
+      <button id="searchCloseBtn" class="btn-icon" title="关闭"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- P3-3: 快捷键帮助对话框 -->
+  <div id="shortcutsDialog" class="hidden">
+    <div class="dialog-overlay"></div>
+    <div class="dialog-box">
+      <div class="dialog-header">
+        <h3><i class="fa-solid fa-keyboard"></i> 快捷键</h3>
+        <button id="closeShortcutsBtn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="dialog-body">
+        <div class="shortcut-group">
+          <div class="shortcut-group-title">标签页</div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>T</kbd><span>新建标签</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>W</kbd><span>关闭标签</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>1-9</kbd><span>切换到第N个标签</span></div>
+        </div>
+        <div class="shortcut-group">
+          <div class="shortcut-group-title">终端</div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd><span>复制选中文本</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd><span>粘贴到终端</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd><span>终端搜索</span></div>
+        </div>
+        <div class="shortcut-group">
+          <div class="shortcut-group-title">界面</div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>B</kbd><span>切换笔记面板</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>S</kbd><span>保存当前笔记</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>/</kbd><span>显示快捷键</span></div>
+          <div class="shortcut-row"><kbd>F11</kbd><span>全屏切换</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 依赖库 -->
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.0/dist/purify.min.js"></script>
   <!-- 应用逻辑 -->
