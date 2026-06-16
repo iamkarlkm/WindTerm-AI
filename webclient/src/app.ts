@@ -1,0 +1,1025 @@
+/* WindTerm AI - Web Terminal Client (TypeScript) */
+/* P0: 安全加固 + P1: 类型安全 + 会话管理 */
+
+// =========================== 类型定义 ===========================
+
+interface ConnectionConfig {
+  host: string;
+  port: string;
+  username: string;
+  token: string;
+  time: number;
+}
+
+interface TabData {
+  sessionId: string | null;
+  ws: WebSocket | null;
+  terminal: any;
+  fitAddon: any;
+  resizeObserver: ResizeObserver;
+  status: ConnectionStatus;
+  host: string;
+  port: string;
+  username: string;
+  label: string;
+  reconnectAttempts: number;
+  reconnectTimer: number | null;
+  heartbeatTimer: number | null;
+  heartbeatTimeout: number | null;
+  lastActivity: number;
+}
+
+type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'reconnecting' | 'error' | 'disconnected_by_user';
+
+interface Snippet {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GatewayMessage {
+  type: string;
+  sessionId?: string;
+  data?: string;
+  code?: number;
+  error?: string;
+}
+
+interface ErrorDiagnosis {
+  level: 'error' | 'warn';
+  title: string;
+  detail: string;
+}
+
+interface AppState {
+  currentTab: string | null;
+  tabs: Map<string, TabData>;
+  snippets: Snippet[];
+  currentSnippetId: string | null;
+  token: string;
+  autosaveTimer: number | null;
+}
+
+// =========================== 全局类型声明 ===========================
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+declare const Terminal: any;
+declare const FitAddon: any;
+declare const WebLinksAddon: any;
+declare const DOMPurify: any;
+
+// Terminal/FitAddon types for tab data
+type TerminalInstance = InstanceType<typeof Terminal>;
+type FitAddonInstance = InstanceType<typeof FitAddon.FitAddon>;
+
+// =========================== 常量 ===========================
+
+const ALLOWED_TAGS = ['b', 'i', 'u', 's', 'pre', 'code', 'a', 'ul', 'ol', 'li',
+  'span', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'p', 'img', 'blockquote', 'table', 'tr', 'td', 'th'];
+const ALLOWED_ATTR = ['href', 'src', 'alt', 'style', 'class', 'title', 'target'];
+
+const RECONNECT_MAX_RETRIES = 10;
+const RECONNECT_BASE_DELAY = 1000;
+const RECONNECT_MAX_DELAY = 30000;
+const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_TIMEOUT = 10000;
+
+// =========================== 状态管理 ===========================
+
+const state: AppState = {
+  currentTab: null,
+  tabs: new Map(),
+  snippets: [],
+  currentSnippetId: null,
+  token: '',
+  autosaveTimer: null,
+};
+
+// =========================== 安全工具 ===========================
+
+function sanitizeHtml(dirty: string): string {
+  if (typeof DOMPurify === 'undefined') {
+    const div = document.createElement('div'); div.textContent = dirty; return div.innerHTML;
+  }
+  return DOMPurify.sanitize(dirty, { ALLOWED_TAGS, ALLOWED_ATTR });
+}
+
+function sanitizeSnippetContent(dirty: string): string {
+  if (typeof DOMPurify === 'undefined') {
+    const div = document.createElement('div'); div.textContent = dirty; return div.innerHTML;
+  }
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: [...ALLOWED_TAGS, 'font'],
+    ALLOWED_ATTR: [...ALLOWED_ATTR, 'color'],
+    ALLOW_DATA_ATTR: false,
+  });
+}
+
+// =========================== Token 管理 ===========================
+
+function storeToken(token: string): void {
+  sessionStorage.setItem('windterm_token', btoa(String(token)));
+}
+
+function getToken(): string {
+  try { return atob(sessionStorage.getItem('windterm_token') || ''); } catch { return ''; }
+}
+
+function clearToken(): void {
+  sessionStorage.removeItem('windterm_token');
+}
+
+// =========================== 连接配置持久化 ===========================
+
+function loadConnections(): ConnectionConfig[] {
+  try {
+    const raw = localStorage.getItem('windterm_connections');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveConnections(list: ConnectionConfig[]): void {
+  localStorage.setItem('windterm_connections', JSON.stringify(list.slice(0, 50)));
+}
+
+function addConnection(host: string, port: string, username: string, token: string): void {
+  const list = loadConnections();
+  const idx = list.findIndex((c) => c.host === host && c.port === port && c.username === username);
+  if (idx >= 0) { list.splice(idx, 1); }
+  list.unshift({ host, port, username, token, time: Date.now() });
+  saveConnections(list);
+}
+
+// =========================== 连接错误诊断 ===========================
+
+function diagnoseError(event: CloseEvent | null, tabData: TabData): ErrorDiagnosis {
+  const host = tabData.host;
+  const port = tabData.port;
+
+  if (!navigator.onLine) {
+    return { level: 'error', title: '网络断开', detail: '设备未连接到网络，请检查网络设置。' };
+  }
+
+  if (event && event.code === 1006) {
+    return {
+      level: 'error', title: '连接异常关闭',
+      detail: `无法连接到 ${host}:${port}。请检查:</br>1. 服务器是否运行</br>2. 防火墙是否放行端口 ${port}</br>3. 主机地址是否正确`,
+    };
+  }
+
+  if (event && event.code === 1001) {
+    return { level: 'warn', title: '服务端关闭连接', detail: '服务器主动关闭了连接，可能是会话超时。' };
+  }
+
+  const url = tabData.ws?.url || '';
+  if (url.startsWith('ws://') && location.protocol === 'https:') {
+    return {
+      level: 'error', title: '协议不匹配',
+      detail: `当前页面使用 HTTPS，但 WebSocket 目标为 ${url}。浏览器会阻止不安全连接。请使用 wss:// 协议。`,
+    };
+  }
+
+  return { level: 'error', title: '连接失败', detail: `无法建立 WebSocket 连接到 ${host}:${port}。<br/>请检查主机地址和端口是否正确。` };
+}
+
+function showConnectionError(error: ErrorDiagnosis): void {
+  const container = document.getElementById('terminalContainer');
+  if (!container) return;
+  const existing = document.getElementById('errorOverlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'errorOverlay';
+  overlay.style.cssText =
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);z-index:100;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-alt);border:1px solid var(--red);border-radius:12px;padding:24px 32px;max-width:420px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:12px;">${error.level === 'error' ? '&#x26D4;' : '&#x26A0;&#xFE0F;'}</div>
+      <div style="font-size:16px;font-weight:600;color:var(--red);margin-bottom:8px;">${escapeText(error.title)}</div>
+      <div style="font-size:13px;color:var(--subtext);line-height:1.6;margin-bottom:16px;">${error.detail}</div>
+      <button onclick="this.parentElement.parentElement.remove()" style="padding:6px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;">关闭</button>
+    </div>`;
+  container.appendChild(overlay);
+}
+
+function escapeText(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// =========================== 笔记管理 ===========================
+
+function loadSnippets(): void {
+  try {
+    const saved = localStorage.getItem('windterm_snippets');
+    state.snippets = saved ? JSON.parse(saved) : [];
+  } catch { state.snippets = []; }
+}
+
+function saveSnippets(): void {
+  try {
+    localStorage.setItem('windterm_snippets', JSON.stringify(state.snippets));
+  } catch (e) {
+    console.warn('存储空间不足', e);
+  }
+}
+
+// =========================== 工具函数 ===========================
+
+function throttle<T extends (...args: unknown[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
+  let last = 0;
+  return function (...args: Parameters<T>) {
+    const now = Date.now();
+    if (now - last > delay) { last = now; fn(...args); }
+  };
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  const now = Date.now();
+  const diff = now - d.getTime();
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+  return d.toLocaleDateString();
+}
+
+function $(id: string): HTMLElement | null {
+  return document.getElementById(id);
+}
+
+// =========================== 标签管理 ===========================
+
+function createTab(host: string, port: string, username: string): string {
+  const tabId = 'tab_' + Date.now();
+  const label = `${username || 'user'}@${host}`;
+
+  const tabEl = document.createElement('div');
+  tabEl.className = 'tab-item active';
+  tabEl.innerHTML = `<span>${escapeText(label)}</span><span class="tab-close" data-tab="${tabId}">&times;</span>`;
+  tabEl.dataset.tabId = tabId;
+
+  document.querySelectorAll('.tab-item').forEach((t) => t.classList.remove('active'));
+  const tabList = $('tabList');
+  if (tabList) tabList.appendChild(tabEl);
+  const hint = $('terminalHint');
+  if (hint) hint.style.display = 'none';
+
+  const terminal = new Terminal({
+    cursorBlink: true,
+    cursorStyle: 'bar',
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    scrollback: 50000,
+    theme: {
+      background: '#1e1e2e', foreground: '#cdd6f4', cursor: '#89b4fa',
+      cursorAccent: '#1e1e2e', selectionBackground: '#45475a',
+      black: '#45475a', red: '#f38ba8', green: '#a6e3a1', yellow: '#f9e2af',
+      blue: '#89b4fa', magenta: '#cba6f7', cyan: '#94e2d5', white: '#bac2de',
+      brightBlack: '#585b70', brightRed: '#f38ba8', brightGreen: '#a6e3a1',
+      brightYellow: '#f9e2af', brightBlue: '#89b4fa', brightMagenta: '#cba6f7',
+      brightCyan: '#94e2d5', brightWhite: '#a6adc8',
+    },
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+  terminal.loadAddon(fitAddon);
+  terminal.loadAddon(webLinksAddon);
+
+  const container = $('terminalContainer');
+  if (container) terminal.open(container);
+
+  setTimeout(() => { try { fitAddon.fit(); } catch { /* ignore */ } }, 100);
+
+  const resizeObserver = new ResizeObserver(throttle(() => {
+    try { fitAddon.fit(); } catch { /* ignore */ }
+    const td = state.tabs.get(tabId);
+    if (td && td.ws && td.ws.readyState === WebSocket.OPEN) {
+      td.ws.send(JSON.stringify({ action: 'resize', sessionId: td.sessionId, cols: terminal.cols, rows: terminal.rows }));
+    }
+  }, 200));
+  if (container) resizeObserver.observe(container);
+
+  terminal.onData((data: string) => {
+    const td = state.tabs.get(tabId);
+    if (td && td.ws && td.ws.readyState === WebSocket.OPEN) {
+      td.ws.send(JSON.stringify({ action: 'input', sessionId: td.sessionId, input: data }));
+      td.lastActivity = Date.now();
+    }
+  });
+
+  terminal.element!.addEventListener('contextmenu', (e: Event) => {
+    const me = e as MouseEvent;
+    const selection = terminal.getSelection();
+    const menu = $('contextMenu');
+    if (!menu) return;
+    const copyItem = menu.querySelector('[data-action="copy"]') as HTMLElement | null;
+    const snippetItem = menu.querySelector('[data-action="saveSnippet"]') as HTMLElement | null;
+    if (copyItem) copyItem.style.display = selection ? '' : 'none';
+    if (snippetItem) snippetItem.style.display = selection ? '' : 'none';
+    menu.classList.remove('hidden');
+    menu.style.left = me.clientX + 'px';
+    menu.style.top = me.clientY + 'px';
+    e.preventDefault();
+  });
+
+  const tabData: TabData = {
+    sessionId: null, ws: null, terminal, fitAddon, resizeObserver,
+    status: 'connecting', host, port, username, label,
+    reconnectAttempts: 0, reconnectTimer: null,
+    heartbeatTimer: null, heartbeatTimeout: null,
+    lastActivity: Date.now(),
+  };
+
+  state.tabs.set(tabId, tabData);
+  state.currentTab = tabId;
+
+  switchTab(tabId);
+  connectTab(tabId);
+  updateStatus();
+  refreshSessionSidebar();
+
+  tabEl.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).classList.contains('tab-close')) return;
+    switchTab(tabId);
+  });
+  tabEl.querySelector('.tab-close')!.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeTab(tabId);
+  });
+
+  return tabId;
+}
+
+function switchTab(tabId: string): void {
+  document.querySelectorAll('.tab-item').forEach((t) => t.classList.remove('active'));
+  const tabEl = document.querySelector(`.tab-item[data-tab-id="${tabId}"]`);
+  if (tabEl) tabEl.classList.add('active');
+
+  state.tabs.forEach((tab, id) => {
+    tab.terminal.element!.style.display = id === tabId ? '' : 'none';
+  });
+
+  state.currentTab = tabId;
+  const tabData = state.tabs.get(tabId);
+  if (tabData) updateStatus(tabData.status);
+}
+
+function closeTab(tabId: string): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+
+  if (tabData.reconnectTimer) { clearTimeout(tabData.reconnectTimer); tabData.reconnectTimer = null; }
+  if (tabData.heartbeatTimer) { clearInterval(tabData.heartbeatTimer); tabData.heartbeatTimer = null; }
+  if (tabData.heartbeatTimeout) { clearTimeout(tabData.heartbeatTimeout); tabData.heartbeatTimeout = null; }
+
+  if (tabData.ws) {
+    if (tabData.sessionId) {
+      tabData.ws.send(JSON.stringify({ action: 'destroy', sessionId: tabData.sessionId }));
+    }
+    tabData.ws.onclose = null;
+    tabData.ws.close();
+  }
+
+  tabData.terminal.dispose();
+  tabData.resizeObserver.disconnect();
+  state.tabs.delete(tabId);
+
+  const tabEl = document.querySelector(`.tab-item[data-tab-id="${tabId}"]`);
+  if (tabEl) tabEl.remove();
+
+  const errorOverlay = $('errorOverlay');
+  if (errorOverlay) errorOverlay.remove();
+
+  if (state.currentTab === tabId) {
+    const remaining = [...state.tabs.keys()];
+    if (remaining.length > 0) {
+      switchTab(remaining[0]);
+    } else {
+      state.currentTab = null;
+      const hint = $('terminalHint');
+      if (hint) hint.style.display = '';
+      updateStatus('disconnected');
+    }
+  }
+  updateStatus();
+  refreshSessionSidebar();
+}
+
+// =========================== P0-4: 断线重连 + P0-5: 心跳 ===========================
+
+function connectTab(tabId: string): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+
+  updateTabStatus(tabId, 'connecting');
+
+  const protocol: string = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = ($('hostInput') as HTMLInputElement)?.value || 'localhost';
+  const gwPort = ($('portInput') as HTMLInputElement)?.value || '8080';
+  const gatewayUrl = `${protocol}//${host}:${gwPort}`;
+
+  const ws = new WebSocket(gatewayUrl);
+  tabData.ws = ws;
+
+  ws.onopen = () => {
+    tabData.reconnectAttempts = 0;
+    ws.send(JSON.stringify({
+      action: 'handshake',
+      token: state.token || ($('tokenInput') as HTMLInputElement)?.value,
+    }));
+    startHeartbeat(tabId);
+  };
+
+  ws.onmessage = (event: MessageEvent) => {
+    try {
+      const msg: GatewayMessage = JSON.parse(event.data);
+      handleGatewayMessage(tabId, msg);
+    } catch (e) {
+      console.error('消息解析失败:', e);
+    }
+  };
+
+  ws.onerror = () => {
+    const error = diagnoseError(null, tabData);
+    showConnectionError(error);
+  };
+
+  ws.onclose = (event: CloseEvent) => {
+    stopHeartbeat(tabId);
+
+    if (tabData.reconnectAttempts < RECONNECT_MAX_RETRIES && tabData.status !== 'disconnected_by_user') {
+      const delay = Math.min(RECONNECT_BASE_DELAY * Math.pow(2, tabData.reconnectAttempts), RECONNECT_MAX_DELAY);
+      const jitter = delay * 0.3 * Math.random();
+      tabData.reconnectAttempts++;
+      updateTabStatus(tabId, 'reconnecting');
+      tabData.terminal.writeln(`\r\n\x1b[33m[重新连接中 (${tabData.reconnectAttempts}/${RECONNECT_MAX_RETRIES})...]\x1b[0m`);
+
+      tabData.reconnectTimer = window.setTimeout(() => connectTab(tabId), delay + jitter);
+    } else {
+      updateTabStatus(tabId, 'disconnected');
+      const error = diagnoseError(event, tabData);
+      tabData.terminal.writeln(`\r\n\x1b[31m[${error.title} - 连接已断开]\x1b[0m`);
+      if (tabData.reconnectAttempts >= RECONNECT_MAX_RETRIES) {
+        tabData.terminal.writeln('\x1b[33m[已达到最大重试次数]\x1b[0m');
+      }
+    }
+  };
+}
+
+function startHeartbeat(tabId: string): void {
+  stopHeartbeat(tabId);
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+
+  tabData.heartbeatTimer = window.setInterval(() => {
+    if (tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
+      tabData.ws.send(JSON.stringify({ action: 'ping' }));
+
+      tabData.heartbeatTimeout = window.setTimeout(() => {
+        tabData.terminal.writeln('\r\n\x1b[33m[心跳超时，连接可能已断开]\x1b[0m');
+        tabData.ws!.close();
+      }, HEARTBEAT_TIMEOUT);
+    }
+  }, HEARTBEAT_INTERVAL);
+}
+
+function stopHeartbeat(tabId: string): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+  if (tabData.heartbeatTimer) { clearInterval(tabData.heartbeatTimer); tabData.heartbeatTimer = null; }
+  if (tabData.heartbeatTimeout) { clearTimeout(tabData.heartbeatTimeout); tabData.heartbeatTimeout = null; }
+}
+
+// =========================== 消息处理 (含错误码区分) ===========================
+
+function handleGatewayMessage(tabId: string, msg: GatewayMessage): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+
+  if (msg.type === 'pong') {
+    if (tabData.heartbeatTimeout) { clearTimeout(tabData.heartbeatTimeout); tabData.heartbeatTimeout = null; }
+    return;
+  }
+
+  switch (msg.type) {
+    case 'handshake_ok':
+      tabData.ws!.send(JSON.stringify({
+        action: 'create',
+        host: tabData.host,
+        port: parseInt(tabData.port) || 22,
+        username: tabData.username || 'root',
+      }));
+      break;
+    case 'session_created':
+      tabData.sessionId = msg.sessionId || null;
+      updateTabStatus(tabId, 'connected');
+      break;
+    case 'attached':
+      tabData.sessionId = msg.sessionId || null;
+      updateTabStatus(tabId, 'connected');
+      break;
+    case 'data':
+      if (msg.data) tabData.terminal.write(atob(msg.data));
+      break;
+    case 'session_closed':
+      updateTabStatus(tabId, 'disconnected');
+      tabData.terminal.writeln('\r\n\x1b[31m[会话已关闭]\x1b[0m');
+      break;
+    case 'error':
+      handleGatewayError(tabId, msg);
+      break;
+    case 'input_sent':
+    case 'resized':
+      break;
+  }
+}
+
+function handleGatewayError(tabId: string, msg: GatewayMessage): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+
+  let errorText: string;
+  let errorColor: string;
+  switch (msg.code) {
+    case 401:
+      errorText = '[认证失败 (401)]: 令牌无效或已过期，请更新令牌后重试。';
+      errorColor = '33';
+      break;
+    case 403:
+      errorText = '[无权限 (403)]: 拒绝访问，请联系管理员。';
+      errorColor = '33';
+      break;
+    case 404:
+      errorText = '[未找到 (404)]: 请求的会话不存在，请创建新会话。';
+      errorColor = '33';
+      break;
+    case 500:
+      errorText = '[服务器错误 (500)]: 网关内部错误，请稍后重试。';
+      errorColor = '31';
+      break;
+    case 502:
+      errorText = '[网关错误 (502)]: 后端服务不可用，请稍后重试。';
+      errorColor = '31';
+      break;
+    default:
+      errorText = `[错误 (${msg.code || '未知'})]: ${escapeText(msg.error || '未知错误')}`;
+      errorColor = '31';
+  }
+  tabData.terminal.writeln(`\r\n\x1b[${errorColor}m${errorText}\x1b[0m`);
+}
+
+// =========================== 状态更新 ===========================
+
+function updateTabStatus(tabId: string, status: ConnectionStatus): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+  tabData.status = status;
+  if (state.currentTab === tabId) updateStatus(status);
+  renderActiveSessions();
+}
+
+function updateStatus(status?: ConnectionStatus): void {
+  const indicator = $('statusIndicator');
+  const text = $('statusText');
+  const tabCount = $('tabCount');
+  const snippetCount = $('snippetCount');
+
+  if (tabCount) tabCount.textContent = `${state.tabs.size} 个标签`;
+  if (snippetCount) snippetCount.textContent = `${state.snippets.length} 条笔记`;
+
+  if (!status) {
+    const tabData = state.tabs.get(state.currentTab || '');
+    status = tabData ? tabData.status : 'disconnected';
+  }
+
+  if (indicator) {
+    indicator.classList.remove('connected', 'disconnected', 'reconnecting');
+    switch (status) {
+      case 'connected':
+        indicator.classList.add('connected');
+        if (text) text.textContent = '已连接';
+        break;
+      case 'connecting':
+        indicator.classList.add('disconnected');
+        if (text) text.textContent = '连接中...';
+        break;
+      case 'reconnecting':
+        indicator.classList.add('reconnecting');
+        if (text) text.textContent = '重连中...';
+        break;
+      case 'error':
+        indicator.classList.add('disconnected');
+        if (text) text.textContent = '连接错误';
+        break;
+      default:
+        indicator.classList.add('disconnected');
+        if (text) text.textContent = '未连接';
+    }
+  }
+}
+
+// =========================== 会话管理面板 ===========================
+
+function renderActiveSessions(): void {
+  const list = $('activeSessionList');
+  if (!list) return;
+  if (state.tabs.size === 0) {
+    list.innerHTML = '<div class="sidebar-empty">无活跃会话</div>';
+    return;
+  }
+  list.innerHTML = [...state.tabs.entries()].map(([id, tab]) => `
+    <div class="session-entry" data-session-id="${id}">
+      <span class="session-icon"><i class="fa-solid fa-terminal"></i></span>
+      <span class="session-info">
+        <div class="session-host">${escapeText(tab.username || 'user')}@${escapeText(tab.host)}</div>
+        <div class="session-meta">${tab.port}:${escapeText((tab.sessionId || '未分配').substring(0, 12))}</div>
+      </span>
+      <span class="session-status ${tab.status}"></span>
+      <span class="session-actions">
+        <button class="session-action-btn disconnect" data-action="disconnect" data-tab-id="${id}" title="断开"><i class="fa-solid fa-plug-circle-xmark"></i></button>
+      </span>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.session-entry').forEach((el) => {
+    el.addEventListener('click', () => switchTab((el as HTMLElement).dataset.sessionId!));
+  });
+  list.querySelectorAll('.session-action-btn.disconnect').forEach((btn) => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); closeTab((btn as HTMLElement).dataset.tabId!); });
+  });
+}
+
+function renderHistorySessions(): void {
+  const list = $('historySessionList');
+  if (!list) return;
+  const connections = loadConnections();
+  if (connections.length === 0) {
+    list.innerHTML = '<div class="sidebar-empty">无连接历史</div>';
+    return;
+  }
+  list.innerHTML = connections.map((c, i) => `
+    <div class="history-entry" data-idx="${i}">
+      <span class="history-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+      <span class="history-info">
+        <div class="history-host">${escapeText(c.username || 'user')}@${escapeText(c.host)}:${c.port}</div>
+        <div class="history-time">${formatTime(String(c.time))}</div>
+      </span>
+      <button class="history-reconnect" data-idx="${i}" title="连接"><i class="fa-solid fa-plug"></i></button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.history-entry').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.history-reconnect')) return;
+      const idx = parseInt((el as HTMLElement).dataset.idx!);
+      const c = connections[idx];
+      if (c) {
+        (($('hostInput') as HTMLInputElement)).value = c.host;
+        (($('portInput') as HTMLInputElement)).value = c.port;
+        (($('userInput') as HTMLInputElement)).value = c.username;
+        state.token = c.token || '';
+        storeToken(state.token);
+        createTab(c.host, c.port, c.username);
+      }
+    });
+  });
+  list.querySelectorAll('.history-reconnect').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt((btn as HTMLElement).dataset.idx!);
+      const c = connections[idx];
+      if (c) {
+        state.token = c.token || '';
+        storeToken(state.token);
+        createTab(c.host, c.port, c.username);
+      }
+    });
+  });
+}
+
+function refreshSessionSidebar(): void {
+  renderActiveSessions();
+  renderHistorySessions();
+}
+
+// =========================== 笔记系统 ===========================
+
+function createSnippet(title: string, content: string): void {
+  const snippet: Snippet = {
+    id: 'snp_' + Date.now(),
+    title: title || '未命名笔记',
+    content: sanitizeSnippetContent(content || ''),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  state.snippets.push(snippet);
+  saveSnippets();
+  renderSnippetList();
+  selectSnippet(snippet.id);
+  updateStatus();
+}
+
+function selectSnippet(id: string): void {
+  state.currentSnippetId = id;
+  const snippet = state.snippets.find((s) => s.id === id);
+  if (!snippet) return;
+
+  (($('snippetTitle') as HTMLInputElement)).value = snippet.title;
+  const content = $('snippetContent');
+  if (content) content.innerHTML = sanitizeSnippetContent(snippet.content);
+  const deleteBtn = $('deleteSnippetBtn');
+  if (deleteBtn) deleteBtn.style.display = '';
+
+  document.querySelectorAll('.snippet-list-item').forEach((el) => {
+    el.classList.toggle('active', (el as HTMLElement).dataset.snippetId === id);
+  });
+}
+
+function saveCurrentSnippet(): void {
+  if (!state.currentSnippetId) {
+    const title = ($('snippetTitle') as HTMLInputElement)?.value || '未命名笔记';
+    const content = $('snippetContent')?.innerHTML || '';
+    createSnippet(title, content);
+    return;
+  }
+
+  const snippet = state.snippets.find((s) => s.id === state.currentSnippetId);
+  if (!snippet) return;
+
+  snippet.title = ($('snippetTitle') as HTMLInputElement)?.value || '未命名笔记';
+  snippet.content = sanitizeSnippetContent($('snippetContent')?.innerHTML || '');
+  snippet.updatedAt = new Date().toISOString();
+  saveSnippets();
+  renderSnippetList();
+}
+
+function deleteCurrentSnippet(): void {
+  if (!state.currentSnippetId) return;
+  if (!confirm('确认删除这条笔记？')) return;
+
+  state.snippets = state.snippets.filter((s) => s.id !== state.currentSnippetId);
+  saveSnippets();
+
+  state.currentSnippetId = null;
+  (($('snippetTitle') as HTMLInputElement)).value = '';
+  const content = $('snippetContent');
+  if (content) content.innerHTML = '';
+  const deleteBtn = $('deleteSnippetBtn');
+  if (deleteBtn) deleteBtn.style.display = 'none';
+  renderSnippetList();
+  updateStatus();
+}
+
+function renderSnippetList(): void {
+  const list = $('snippetList');
+  if (!list) return;
+  list.innerHTML = state.snippets.length === 0
+    ? '<div style="padding:14px;color:var(--overlay);font-size:12px;text-align:center">暂无笔记</div>'
+    : state.snippets.map((s) => `
+      <div class="snippet-list-item" data-snippet-id="${s.id}">
+        <span>${escapeText(s.title)}</span>
+        <span class="snippet-time">${formatTime(s.updatedAt)}</span>
+      </div>
+    `).join('');
+
+  list.querySelectorAll('.snippet-list-item').forEach((el) => {
+    el.addEventListener('click', () => selectSnippet((el as HTMLElement).dataset.snippetId!));
+  });
+}
+
+function createSnippetFromSelection(): void {
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (!tabData) return;
+  const text = tabData.terminal.getSelection();
+  if (!text) return;
+  createSnippet('终端摘录', `<pre>${escapeText(text)}</pre>`);
+  const panel = $('snippetPanel');
+  if (panel) panel.classList.remove('hidden');
+}
+
+// =========================== 工具栏 ===========================
+
+function execToolbarCmd(cmd: string, arg?: string): void {
+  const content = $('snippetContent');
+  if (content) content.focus();
+  document.execCommand(cmd, false, arg ?? undefined);
+}
+
+// =========================== P0-6: 未保存确认 ===========================
+
+let hasUnsavedSnippet = false;
+
+function markSnippetDirty(): void { hasUnsavedSnippet = true; }
+function markSnippetClean(): void { hasUnsavedSnippet = false; }
+
+window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
+  if (hasUnsavedSnippet) {
+    e.preventDefault();
+    e.returnValue = '有未保存的笔记，确定离开吗？';
+    return e.returnValue;
+  }
+});
+
+// =========================== 事件初始化 ===========================
+
+document.addEventListener('DOMContentLoaded', () => {
+  state.token = getToken();
+  loadSnippets();
+  renderSnippetList();
+  updateStatus();
+  refreshSessionSidebar();
+
+  const savedConn = loadConnections();
+  if (savedConn.length > 0) {
+    (($('hostInput') as HTMLInputElement)).value = savedConn[0].host || '';
+    (($('portInput') as HTMLInputElement)).value = savedConn[0].port || '22';
+    (($('userInput') as HTMLInputElement)).value = savedConn[0].username || '';
+    state.token = savedConn[0].token || '';
+  }
+
+  // 连接按钮
+  $('connectBtn')?.addEventListener('click', () => {
+    const host = ($('hostInput') as HTMLInputElement)?.value || 'localhost';
+    const port = ($('portInput') as HTMLInputElement)?.value || '22';
+    const username = ($('userInput') as HTMLInputElement)?.value || 'root';
+    state.token = ($('tokenInput') as HTMLInputElement)?.value || '';
+    storeToken(state.token);
+    addConnection(host, port, username, state.token);
+    createTab(host, port, username);
+  });
+
+  // 回车连接
+  ['hostInput', 'portInput', 'userInput', 'tokenInput'].forEach((id) => {
+    $(id)?.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') $('connectBtn')?.click();
+    });
+  });
+
+  // 新建标签
+  $('newTabBtn')?.addEventListener('click', () => {
+    createTab(
+      ($('hostInput') as HTMLInputElement)?.value || 'localhost',
+      ($('portInput') as HTMLInputElement)?.value || '22',
+      ($('userInput') as HTMLInputElement)?.value || 'root',
+    );
+  });
+
+  // 面板切换
+  $('toggleSessions')?.addEventListener('click', () => {
+    $('sessionSidebar')?.classList.toggle('hidden');
+    refreshSessionSidebar();
+  });
+  $('closeSessionSidebarBtn')?.addEventListener('click', () => {
+    $('sessionSidebar')?.classList.add('hidden');
+  });
+  $('toggleSnippets')?.addEventListener('click', () => {
+    $('snippetPanel')?.classList.toggle('hidden');
+  });
+  $('closeSnippetsBtn')?.addEventListener('click', () => {
+    $('snippetPanel')?.classList.add('hidden');
+  });
+
+  // 笔记操作
+  $('newSnippetBtn')?.addEventListener('click', () => {
+    state.currentSnippetId = null;
+    (($('snippetTitle') as HTMLInputElement)).value = '';
+    const content = $('snippetContent');
+    if (content) content.innerHTML = '';
+    const deleteBtn = $('deleteSnippetBtn');
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    markSnippetClean();
+  });
+  $('saveSnippetBtn')?.addEventListener('click', () => {
+    saveCurrentSnippet();
+    markSnippetClean();
+  });
+  $('deleteSnippetBtn')?.addEventListener('click', deleteCurrentSnippet);
+
+  // 笔记内容更改检测
+  $('snippetContent')?.addEventListener('input', markSnippetDirty);
+  $('snippetTitle')?.addEventListener('input', markSnippetDirty);
+
+  // Ctrl+S 保存
+  $('snippetContent')?.addEventListener('keydown', (e) => {
+    if (((e as KeyboardEvent).ctrlKey || (e as KeyboardEvent).metaKey) && (e as KeyboardEvent).key === 's') {
+      e.preventDefault();
+      saveCurrentSnippet();
+      markSnippetClean();
+    }
+  });
+
+  // 自动保存
+  $('snippetContent')?.addEventListener('input', () => {
+    if (state.autosaveTimer) clearTimeout(state.autosaveTimer);
+    state.autosaveTimer = window.setTimeout(() => {
+      if (hasUnsavedSnippet && state.currentSnippetId) {
+        saveCurrentSnippet();
+        markSnippetClean();
+      }
+    }, 5000);
+  });
+
+  // 工具栏
+  document.querySelectorAll('.btn-toolbar').forEach((btn) => {
+    btn.addEventListener('click', () => execToolbarCmd(
+      (btn as HTMLElement).dataset.cmd!,
+      (btn as HTMLElement).dataset.arg,
+    ));
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+  });
+
+  // 右键菜单
+  document.addEventListener('click', () => {
+    $('contextMenu')?.classList.add('hidden');
+  });
+
+  document.querySelectorAll('.menu-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      $('contextMenu')?.classList.add('hidden');
+      const action = (item as HTMLElement).dataset.action;
+      const tabData = state.tabs.get(state.currentTab || '');
+
+      switch (action) {
+        case 'copy':
+          if (tabData) {
+            const text = tabData.terminal.getSelection();
+            if (text) navigator.clipboard.writeText(text).catch(() => {});
+          }
+          break;
+        case 'paste':
+          navigator.clipboard.readText().then((text) => {
+            if (tabData && tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
+              tabData.ws.send(JSON.stringify({ action: 'input', sessionId: tabData.sessionId, input: text }));
+            }
+          }).catch(() => {});
+          break;
+        case 'clear':
+          if (tabData) tabData.terminal.clear();
+          break;
+        case 'saveSnippet':
+          createSnippetFromSelection();
+          break;
+      }
+    });
+  });
+
+  // 全局快捷键
+  document.addEventListener('keydown', (e) => {
+    const kb = e as KeyboardEvent;
+    if ((kb.ctrlKey || kb.metaKey) && kb.shiftKey && kb.key === 'C') {
+      const tabData = state.tabs.get(state.currentTab || '');
+      if (tabData) {
+        const text = tabData.terminal.getSelection();
+        if (text) navigator.clipboard.writeText(text).catch(() => {});
+      }
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.shiftKey && kb.key === 'V') {
+      navigator.clipboard.readText().then((text) => {
+        const tabData = state.tabs.get(state.currentTab || '');
+        if (tabData && tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
+          tabData.ws.send(JSON.stringify({ action: 'input', sessionId: tabData.sessionId, input: text }));
+        }
+      }).catch(() => {});
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.key === 'b') {
+      kb.preventDefault();
+      $('snippetPanel')?.classList.toggle('hidden');
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.key === 't' && !kb.shiftKey) {
+      kb.preventDefault();
+      $('newTabBtn')?.click();
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.key === 'w') {
+      kb.preventDefault();
+      if (state.currentTab) closeTab(state.currentTab);
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.key >= '1' && kb.key <= '9') {
+      kb.preventDefault();
+      const idx = parseInt(kb.key) - 1;
+      const tabIds = [...state.tabs.keys()];
+      if (idx < tabIds.length) switchTab(tabIds[idx]);
+    }
+  });
+
+  // 窗口大小调整
+  window.addEventListener('resize', throttle(() => {
+    const tab = state.tabs.get(state.currentTab || '');
+    if (tab) try { tab.fitAddon.fit(); } catch { /* ignore */ }
+  }, 100));
+
+  // 网络状态变化时自动尝试重连
+  window.addEventListener('online', () => {
+    state.tabs.forEach((tab, id) => {
+      if (tab.status === 'disconnected') connectTab(id);
+    });
+  });
+});
+
+console.log('WindTerm AI Web Client (TypeScript Production) 已就绪');
+
