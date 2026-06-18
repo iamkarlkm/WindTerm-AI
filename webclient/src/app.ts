@@ -149,6 +149,20 @@ const messages: Record<string, Record<string, string>> = {
     tabCloseAll: '关闭全部',
     tabDuplicate: '复制标签',
     tabRename: '重命名',
+    connect: '连接',
+    hostPlaceholder: '主机',
+    portPlaceholder: '端口',
+    userPlaceholder: '用户',
+    tokenPlaceholder: '令牌',
+    hostTitle: '主机地址',
+    portTitle: '端口',
+    userTitle: '用户名',
+    tokenTitle: '认证令牌',
+    searchPlaceholder: '搜索...',
+    palettePlaceholder: '输入命令...',
+    chatPlaceholder: '输入消息...',
+    noteTitlePlaceholder: '笔记标题...',
+    noteContentPlaceholder: '在此输入笔记内容...',
   },
   en: {
     disconnected: 'Disconnected',
@@ -203,6 +217,20 @@ const messages: Record<string, Record<string, string>> = {
     tabCloseAll: 'Close All',
     tabDuplicate: 'Duplicate Tab',
     tabRename: 'Rename',
+    connect: 'Connect',
+    hostPlaceholder: 'Host',
+    portPlaceholder: 'Port',
+    userPlaceholder: 'User',
+    tokenPlaceholder: 'Token',
+    hostTitle: 'Host Address',
+    portTitle: 'Port',
+    userTitle: 'Username',
+    tokenTitle: 'Auth Token',
+    searchPlaceholder: 'Search...',
+    palettePlaceholder: 'Type a command...',
+    chatPlaceholder: 'Type a message...',
+    noteTitlePlaceholder: 'Note title...',
+    noteContentPlaceholder: 'Type your note...',
   },
 };
 
@@ -257,6 +285,37 @@ function refreshAllUI(): void {
     const el = document.getElementById(id);
     if (el) el.title = tip;
   });
+  // 更新连接按钮文字
+  const connectBtnText = document.getElementById('connectBtnText');
+  if (connectBtnText) connectBtnText.textContent = t('connect');
+  // 更新输入框 placeholder 和 title
+  const inputConfigs: Record<string, [string, string]> = {
+    hostInput: ['hostPlaceholder', 'hostTitle'],
+    portInput: ['portPlaceholder', 'portTitle'],
+    userInput: ['userPlaceholder', 'userTitle'],
+    tokenInput: ['tokenPlaceholder', 'tokenTitle'],
+  };
+  Object.entries(inputConfigs).forEach(([id, [ph, tit]]) => {
+    const input = document.getElementById(id) as HTMLInputElement | null;
+    if (input) {
+      input.placeholder = t(ph);
+      input.title = t(tit);
+    }
+  });
+  // 更新搜索/命令面板/聊天/笔记 placeholder
+  const placeholderConfigs: Record<string, string> = {
+    searchInput: 'searchPlaceholder',
+    paletteInput: 'palettePlaceholder',
+    chatInput: 'chatPlaceholder',
+    snippetTitle: 'noteTitlePlaceholder',
+  };
+  Object.entries(placeholderConfigs).forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) (el as HTMLInputElement).placeholder = t(key);
+  });
+  // 更新笔记内容区 placeholder
+  const snippetContent = document.getElementById('snippetContent');
+  if (snippetContent) snippetContent.setAttribute('placeholder', t('noteContentPlaceholder'));
   // 更新快捷键对话框
   renderShortcutsDialog();
   // 更新右键菜单
