@@ -147,6 +147,8 @@ const messages: Record<string, Record<string, string>> = {
     hintEnterHost: '输入目标主机',
     hintEnterToken: '输入认证令牌',
     hintClickConnect: '点击连接建立会话',
+    saveSnippet: '保存',
+    shortcutsDialogTitle: '快捷键',
     contextCopy: '复制',
     contextPaste: '粘贴',
     contextClear: '清除终端',
@@ -282,6 +284,8 @@ const messages: Record<string, Record<string, string>> = {
     hintEnterHost: 'Enter target host',
     hintEnterToken: 'Enter auth token',
     hintClickConnect: 'Click Connect to start session',
+    saveSnippet: 'Save',
+    shortcutsDialogTitle: 'Shortcuts',
     contextCopy: 'Copy',
     contextPaste: 'Paste',
     contextClear: 'Clear Terminal',
@@ -435,6 +439,15 @@ function refreshAllUI(): void {
   // 更新新建笔记按钮文字
   const newSnippetBtnText = document.getElementById('newSnippetBtnText');
   if (newSnippetBtnText) newSnippetBtnText.textContent = t('newSnippet');
+  // 更新保存笔记按钮文字
+  const saveSnippetBtnText = document.getElementById('saveSnippetBtnText');
+  if (saveSnippetBtnText) saveSnippetBtnText.textContent = t('saveSnippet');
+  // 更新快捷键对话框标题
+  const shortcutsTitle = document.getElementById('shortcutsDialogTitle');
+  if (shortcutsTitle) shortcutsTitle.textContent = t('shortcutsDialogTitle');
+  // 更新全屏按钮 tooltip (根据当前状态)
+  const toggleFullscreenBtn = document.getElementById('toggleFullscreen');
+  if (toggleFullscreenBtn) toggleFullscreenBtn.title = document.fullscreenElement ? t('exitFullscreen') : t('fullscreen');
   // 更新输入框 placeholder 和 title
   const inputConfigs: Record<string, [string, string]> = {
     hostInput: ['hostPlaceholder', 'hostTitle'],
@@ -595,21 +608,21 @@ function initTheme(): void {
 function toggleFullscreen(): void {
   if (document.fullscreenElement) {
     document.exitFullscreen();
-    const icon = $('toggleFullscreen')?.querySelector('i');
-    if (icon) icon.className = 'fa-solid fa-expand';
   } else {
     document.documentElement.requestFullscreen();
-    const icon = $('toggleFullscreen')?.querySelector('i');
-    if (icon) icon.className = 'fa-solid fa-compress';
   }
+  updateFullscreenButton();
 }
 
-document.addEventListener('fullscreenchange', () => {
-  const icon = $('toggleFullscreen')?.querySelector('i');
-  if (icon) {
-    icon.className = document.fullscreenElement ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-  }
-});
+function updateFullscreenButton(): void {
+  const btn = $('toggleFullscreen');
+  if (!btn) return;
+  const icon = btn.querySelector('i');
+  if (icon) icon.className = document.fullscreenElement ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+  btn.title = document.fullscreenElement ? t('exitFullscreen') : t('fullscreen');
+}
+
+document.addEventListener('fullscreenchange', updateFullscreenButton);
 
 // =========================== P3-4: 设置持久化 (必须在 state 之前) ===========================
 

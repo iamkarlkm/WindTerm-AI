@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="manifest" href="/manifest.webmanifest">
-  <script type="module" crossorigin src="/assets/main-BSqPTIfP.js"></script>
+  <script type="module" crossorigin src="/assets/main-CJURkWmW.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/main-DCloS6wW.css">
 </head>
 <body>
@@ -131,7 +131,7 @@
           </div>
           <div id="snippetContent" contenteditable="true" placeholder="在此输入笔记内容..."></div>
           <div id="snippetActions">
-            <button id="saveSnippetBtn" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+            <button id="saveSnippetBtn" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> <span id="saveSnippetBtnText">保存</span></button>
             <button id="deleteSnippetBtn" class="btn-danger"><i class="fa-solid fa-trash"></i> 删除</button>
           </div>
         </div>
@@ -188,7 +188,7 @@
     <div class="dialog-overlay"></div>
     <div class="dialog-box">
       <div class="dialog-header">
-        <h3><i class="fa-solid fa-keyboard"></i> 快捷键</h3>
+        <h3><i class="fa-solid fa-keyboard"></i> <span id="shortcutsDialogTitle">快捷键</span></h3>
         <button id="closeShortcutsBtn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="dialog-body" id="shortcutsBody">
