@@ -140,6 +140,10 @@ const messages: Record<string, Record<string, string>> = {
     connectHint: '在顶部输入主机地址、端口和认证令牌，然后点击连接',
     saveTemplate: '保存为配置模板',
     newSnippet: '新建',
+    toolbarBold: '粗体',
+    toolbarItalic: '斜体',
+    toolbarUnderline: '下划线',
+    toolbarStrikethrough: '删除线',
     contextCopy: '复制',
     contextPaste: '粘贴',
     contextClear: '清除终端',
@@ -268,6 +272,10 @@ const messages: Record<string, Record<string, string>> = {
     connectHint: 'Enter host address, port, and token above, then click Connect',
     saveTemplate: 'Save Template',
     newSnippet: 'New',
+    toolbarBold: 'Bold',
+    toolbarItalic: 'Italic',
+    toolbarUnderline: 'Underline',
+    toolbarStrikethrough: 'Strikethrough',
     contextCopy: 'Copy',
     contextPaste: 'Paste',
     contextClear: 'Clear Terminal',
@@ -439,6 +447,21 @@ function refreshAllUI(): void {
   // 更新笔记内容区 placeholder
   const snippetContent = document.getElementById('snippetContent');
   if (snippetContent) snippetContent.setAttribute('placeholder', t('noteContentPlaceholder'));
+  // 更新编辑器工具栏 tooltip
+  const toolbarBtns: Record<string, string> = {
+    bold: 'toolbarBold', italic: 'toolbarItalic',
+    underline: 'toolbarUnderline', strikeThrough: 'toolbarStrikethrough',
+  };
+  document.querySelectorAll('.btn-toolbar').forEach((btn) => {
+    const cmd = (btn as HTMLElement).dataset.cmd;
+    if (cmd && toolbarBtns[cmd]) (btn as HTMLElement).title = t(toolbarBtns[cmd]);
+  });
+  // 更新笔记标题 (仅当仍是默认值时)
+  const oldDefaults = ['未命名笔记', 'Untitled Note'];
+  const snippetTitleEl = document.getElementById('snippetTitle') as HTMLInputElement | null;
+  if (snippetTitleEl && oldDefaults.includes(snippetTitleEl.value)) {
+    snippetTitleEl.value = t('untitledNote');
+  }
   // 更新快捷键对话框
   renderShortcutsDialog();
   // 更新右键菜单
