@@ -135,6 +135,20 @@ const messages: Record<string, Record<string, string>> = {
     switchLang: 'Switch to English',
     newTab: '新建标签',
     closePanel: '关闭面板',
+    savedTemplates: '配置模板',
+    chatTitle: '会话聊天',
+    connectHint: '在顶部输入主机地址、端口和认证令牌，然后点击连接',
+    saveTemplate: '保存为配置模板',
+    contextCopy: '复制',
+    contextPaste: '粘贴',
+    contextClear: '清除终端',
+    contextSaveSnippet: '保存为笔记',
+    contextExport: '导出终端内容',
+    tabClose: '关闭标签',
+    tabCloseOthers: '关闭其他',
+    tabCloseAll: '关闭全部',
+    tabDuplicate: '复制标签',
+    tabRename: '重命名',
   },
   en: {
     disconnected: 'Disconnected',
@@ -175,6 +189,20 @@ const messages: Record<string, Record<string, string>> = {
     switchLang: '切换到中文',
     newTab: 'New Tab',
     closePanel: 'Close Panel',
+    savedTemplates: 'Templates',
+    chatTitle: 'Chat',
+    connectHint: 'Enter host address, port, and token above, then click Connect',
+    saveTemplate: 'Save Template',
+    contextCopy: 'Copy',
+    contextPaste: 'Paste',
+    contextClear: 'Clear Terminal',
+    contextSaveSnippet: 'Save as Note',
+    contextExport: 'Export Content',
+    tabClose: 'Close Tab',
+    tabCloseOthers: 'Close Others',
+    tabCloseAll: 'Close All',
+    tabDuplicate: 'Duplicate Tab',
+    tabRename: 'Rename',
   },
 };
 
@@ -192,7 +220,84 @@ function t(key: string, ...args: (string | number)[]): string {
 function toggleLanguage(): void {
   currentLang = currentLang === 'zh' ? 'en' : 'zh';
   localStorage.setItem('windterm_lang', currentLang);
+  refreshAllUI();
 }
+
+function refreshAllUI(): void {
+  updateStatus();
+  refreshSessionSidebar();
+  // 更新侧边栏标题
+  const headers = document.querySelectorAll('#sessionSidebar .sidebar-section-title');
+  if (headers[0]) headers[0].textContent = t('activeSessions');
+  if (headers[1]) headers[1].textContent = t('connectionHistory');
+  if (headers[2]) headers[2].textContent = t('savedTemplates');
+  // 更新会话管理面板标题
+  const sessionTitle = document.querySelector('#sessionSidebarHeader h3');
+  if (sessionTitle) sessionTitle.innerHTML = `<i class="fa-solid fa-server"></i> ${t('sessionPanel')}`;
+  // 更新笔记面板标题
+  const snippetTitle = document.querySelector('#snippetHeader h3');
+  if (snippetTitle) snippetTitle.innerHTML = `<i class="fa-solid fa-note-sticky"></i> ${t('snippetPanel')}`;
+  // 更新聊天面板标题
+  const chatTitle = document.querySelector('#chatHeader h3');
+  if (chatTitle) chatTitle.innerHTML = `<i class="fa-solid fa-comments"></i> ${t('chatTitle')}`;
+  // 更新提示文字
+  const hintH2 = document.querySelector('#terminalHint h2');
+  if (hintH2) hintH2.textContent = t('disconnected');
+  const hintP = document.querySelector('#terminalHint p');
+  if (hintP) hintP.textContent = t('connectHint');
+  // 更新按钮 tooltip
+  const tooltips: Record<string, string> = {
+    'toggleSessions': t('sessionPanel'), 'toggleSnippets': t('snippetPanel'),
+    'toggleTheme': t('switchTheme'), 'toggleFullscreen': t('fullscreen'),
+    'toggleLang': t('switchLang'), 'newTabBtn': t('newTab'),
+    'closeSessionSidebarBtn': t('closePanel'), 'closeSnippetsBtn': t('closePanel'),
+    'closeChatBtn': t('closePanel'), 'saveTemplateBtn': t('saveTemplate'),
+  };
+  Object.entries(tooltips).forEach(([id, tip]) => {
+    const el = document.getElementById(id);
+    if (el) el.title = tip;
+  });
+  // 更新快捷键对话框
+  renderShortcutsDialog();
+  // 更新右键菜单
+  updateContextMenuText();
+  // 更新标签右键菜单
+  updateTabContextMenuText();
+}
+
+function updateContextMenuText(): void {
+  const items = document.querySelectorAll('#contextMenu .menu-item');
+  const labels: Record<string, string> = {
+    copy: t('contextCopy'), paste: t('contextPaste'), clear: t('contextClear'),
+    saveSnippet: t('contextSaveSnippet'), export: t('contextExport'),
+  };
+  items.forEach((item) => {
+    const action = (item as HTMLElement).dataset.action;
+    if (action && labels[action]) {
+      const i = item.querySelector('i');
+      const icon = i ? i.outerHTML : '';
+      item.innerHTML = `${icon} ${labels[action]}`;
+    }
+  });
+}
+
+function updateTabContextMenuText(): void {
+  const items = document.querySelectorAll('#tabContextMenu .menu-item');
+  const labels: Record<string, string> = {
+    close: t('tabClose'), closeOthers: t('tabCloseOthers'), closeAll: t('tabCloseAll'),
+    duplicate: t('tabDuplicate'), rename: t('tabRename'),
+  };
+  items.forEach((item) => {
+    const action = (item as HTMLElement).dataset.action;
+    if (action && labels[action]) {
+      const i = item.querySelector('i');
+      const icon = i ? i.outerHTML : '';
+      item.innerHTML = `${icon} ${labels[action]}`;
+    }
+  });
+}
+
+function renderShortcutsDialog(): void {}
 
 // =========================== 主题管理 ===========================
 
@@ -1526,7 +1631,7 @@ const paletteCommands: PaletteCommand[] = [
   { id: 'toggleSnippets', label: '切换笔记面板', shortcut: 'Ctrl+B', action: () => $('snippetPanel')?.classList.toggle('hidden') },
   { id: 'toggleTheme', label: '切换深色/亮色主题', action: toggleTheme },
   { id: 'toggleFullscreen', label: '切换全屏', shortcut: 'F11', action: toggleFullscreen },
-  { id: 'toggleLang', label: '切换语言', action: () => { toggleLanguage(); updateStatus(); refreshSessionSidebar(); } },
+  { id: 'toggleLang', label: '切换语言', action: toggleLanguage },
   { id: 'search', label: '终端搜索', shortcut: 'Ctrl+Shift+F', action: toggleSearchBar },
   { id: 'zoomIn', label: '放大字体', shortcut: 'Ctrl+=', action: zoomIn },
   { id: 'zoomOut', label: '缩小字体', shortcut: 'Ctrl+-', action: zoomOut },
@@ -1709,8 +1814,6 @@ function initApp(): void {
   $('toggleFullscreen')?.addEventListener('click', toggleFullscreen);
   $('toggleLang')?.addEventListener('click', () => {
     toggleLanguage();
-    updateStatus();
-    refreshSessionSidebar();
   });
 
   // P3-1: 搜索栏
