@@ -468,6 +468,12 @@ function refreshAllUI(): void {
   updateContextMenuText();
   // 更新标签右键菜单
   updateTabContextMenuText();
+  // 更新笔记列表 (重新渲染以刷新标题和 time)
+  renderSnippetList();
+  if (state.currentSnippetId) {
+    const activeEl = document.querySelector(`.snippet-list-item[data-snippet-id="${state.currentSnippetId}"]`);
+    if (activeEl) activeEl.classList.add('active');
+  }
 }
 
 function updateContextMenuText(): void {
@@ -1831,11 +1837,12 @@ function deleteCurrentSnippet(): void {
 function renderSnippetList(): void {
   const list = $('snippetList');
   if (!list) return;
+  const defaults = ['未命名笔记', 'Untitled Note'];
   list.innerHTML = state.snippets.length === 0
     ? `<div style="padding:14px;color:var(--overlay);font-size:12px;text-align:center">${t('noNotes')}</div>`
     : state.snippets.map((s) => `
       <div class="snippet-list-item" data-snippet-id="${s.id}">
-        <span>${escapeText(s.title)}</span>
+        <span>${escapeText(defaults.includes(s.title) ? t('untitledNote') : s.title)}</span>
         <span class="snippet-time">${formatTime(s.updatedAt)}</span>
       </div>
     `).join('');
