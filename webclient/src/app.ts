@@ -236,6 +236,33 @@ document.addEventListener('fullscreenchange', () => {
   }
 });
 
+// =========================== P3-4: 设置持久化 (必须在 state 之前) ===========================
+
+interface UserSettings {
+  fontSize: number;
+  language: string;
+  theme: string;
+  sidebarVisible: boolean;
+}
+
+const defaultSettings: UserSettings = {
+  fontSize: 14,
+  language: 'auto',
+  theme: 'dark',
+  sidebarVisible: false,
+};
+
+function loadSettings(): UserSettings {
+  try {
+    const saved = localStorage.getItem('windterm_settings');
+    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : { ...defaultSettings };
+  } catch { return { ...defaultSettings }; }
+}
+
+function saveSettings(settings: UserSettings): void {
+  localStorage.setItem('windterm_settings', JSON.stringify(settings));
+}
+
 // =========================== 状态管理 ===========================
 
 const state: AppState = {
@@ -1461,32 +1488,7 @@ window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
   }
 });
 
-// =========================== P3-4: 设置持久化 ===========================
-
-interface UserSettings {
-  fontSize: number;
-  language: string;
-  theme: string;
-  sidebarVisible: boolean;
-}
-
-const defaultSettings: UserSettings = {
-  fontSize: 14,
-  language: 'auto',
-  theme: 'dark',
-  sidebarVisible: false,
-};
-
-function loadSettings(): UserSettings {
-  try {
-    const saved = localStorage.getItem('windterm_settings');
-    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : { ...defaultSettings };
-  } catch { return { ...defaultSettings }; }
-}
-
-function saveSettings(settings: UserSettings): void {
-  localStorage.setItem('windterm_settings', JSON.stringify(settings));
-}
+// =========================== 设置持久化 (已移到 state 之前) ===========================
 
 function exportData(): void {
   const data = {

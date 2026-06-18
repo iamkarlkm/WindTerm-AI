@@ -6,9 +6,9 @@
   <title>WindTerm AI - Web Terminal Client</title>
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
-             connect-src 'self' ws: wss:;
+             connect-src 'self' ws: wss: http://localhost:* https://*.monkeycode-ai.online:*;
              style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-             script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+             script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
              font-src 'self' https://cdn.jsdelivr.net;
              img-src 'self' data: https: blob:;
              media-src 'none';
@@ -16,13 +16,12 @@
              object-src 'none';
              base-uri 'self';
              form-action 'self';">
+  <meta http-equiv="Referrer-Policy" content="no-referrer">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="X-Frame-Options" content="DENY">
-  <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="manifest" href="/manifest.webmanifest">
-  <script type="module" crossorigin src="/assets/main-WiK_gQBt.js"></script>
+  <script type="module" crossorigin src="/assets/main-B11hvKX_.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/main-DCloS6wW.css">
 </head>
 <body>
