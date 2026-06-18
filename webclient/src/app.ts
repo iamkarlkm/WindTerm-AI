@@ -139,6 +139,7 @@ const messages: Record<string, Record<string, string>> = {
     chatTitle: '会话聊天',
     connectHint: '在顶部输入主机地址、端口和认证令牌，然后点击连接',
     saveTemplate: '保存为配置模板',
+    newSnippet: '新建',
     contextCopy: '复制',
     contextPaste: '粘贴',
     contextClear: '清除终端',
@@ -266,6 +267,7 @@ const messages: Record<string, Record<string, string>> = {
     chatTitle: 'Chat',
     connectHint: 'Enter host address, port, and token above, then click Connect',
     saveTemplate: 'Save Template',
+    newSnippet: 'New',
     contextCopy: 'Copy',
     contextPaste: 'Paste',
     contextClear: 'Clear Terminal',
@@ -406,6 +408,9 @@ function refreshAllUI(): void {
   // 更新连接按钮文字
   const connectBtnText = document.getElementById('connectBtnText');
   if (connectBtnText) connectBtnText.textContent = t('connect');
+  // 更新新建笔记按钮文字
+  const newSnippetBtnText = document.getElementById('newSnippetBtnText');
+  if (newSnippetBtnText) newSnippetBtnText.textContent = t('newSnippet');
   // 更新输入框 placeholder 和 title
   const inputConfigs: Record<string, [string, string]> = {
     hostInput: ['hostPlaceholder', 'hostTitle'],
