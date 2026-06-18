@@ -1606,7 +1606,7 @@ window.addEventListener('unload', () => {
 
 // =========================== 事件初始化 ===========================
 
-document.addEventListener('DOMContentLoaded', () => {
+function initApp(): void {
   state.token = getToken();
   loadSnippets();
   renderSnippetList();
@@ -1924,7 +1924,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tab.status === 'disconnected') connectTab(id);
     });
   });
-});
+}
+
+// 模块脚本延迟执行,DOMContentLoaded 已经触发,直接初始化
+if (document.readyState !== 'loading') {
+  initApp();
+} else {
+  document.addEventListener('DOMContentLoaded', initApp);
+}
 
 console.log('WindTerm AI Web Client (TypeScript Production) 已就绪');
 
