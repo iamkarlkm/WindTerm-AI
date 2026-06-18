@@ -144,6 +144,9 @@ const messages: Record<string, Record<string, string>> = {
     toolbarItalic: '斜体',
     toolbarUnderline: '下划线',
     toolbarStrikethrough: '删除线',
+    hintEnterHost: '输入目标主机',
+    hintEnterToken: '输入认证令牌',
+    hintClickConnect: '点击连接建立会话',
     contextCopy: '复制',
     contextPaste: '粘贴',
     contextClear: '清除终端',
@@ -276,6 +279,9 @@ const messages: Record<string, Record<string, string>> = {
     toolbarItalic: 'Italic',
     toolbarUnderline: 'Underline',
     toolbarStrikethrough: 'Strikethrough',
+    hintEnterHost: 'Enter target host',
+    hintEnterToken: 'Enter auth token',
+    hintClickConnect: 'Click Connect to start session',
     contextCopy: 'Copy',
     contextPaste: 'Paste',
     contextClear: 'Clear Terminal',
@@ -401,6 +407,16 @@ function refreshAllUI(): void {
   if (hintH2) hintH2.textContent = t('disconnected');
   const hintP = document.querySelector('#terminalHint p');
   if (hintP) hintP.textContent = t('connectHint');
+  // 更新引导步骤文字
+  const hintLabels: Record<string, string> = { host: 'hintEnterHost', token: 'hintEnterToken', connect: 'hintClickConnect' };
+  document.querySelectorAll('#terminalHint .hint-item').forEach((el) => {
+    const key = (el as HTMLElement).dataset.hint;
+    if (key && hintLabels[key]) {
+      const i = el.querySelector('i')!;
+      const span = el.querySelector('span');
+      if (span) span.textContent = t(hintLabels[key]);
+    }
+  });
   // 更新按钮 tooltip
   const tooltips: Record<string, string> = {
     'toggleSessions': t('sessionPanel'), 'toggleSnippets': t('snippetPanel'),
