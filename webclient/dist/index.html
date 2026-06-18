@@ -8,7 +8,7 @@
     content="default-src 'self';
              connect-src 'self' ws: wss: http://localhost:* https://*.monkeycode-ai.online:*;
              style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-             script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+             script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net;
              font-src 'self' https://cdn.jsdelivr.net;
              img-src 'self' data: https: blob:;
              media-src 'none';
@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="manifest" href="/manifest.webmanifest">
-  <script type="module" crossorigin src="/assets/main-CEr_0UmO.js"></script>
+  <script type="module" crossorigin src="/assets/main-CNlTsart.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/main-DCloS6wW.css">
 </head>
 <body>
@@ -191,26 +191,7 @@
         <h3><i class="fa-solid fa-keyboard"></i> 快捷键</h3>
         <button id="closeShortcutsBtn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="dialog-body">
-        <div class="shortcut-group">
-          <div class="shortcut-group-title">标签页</div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>T</kbd><span>新建标签</span></div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>W</kbd><span>关闭标签</span></div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>1-9</kbd><span>切换到第N个标签</span></div>
-        </div>
-        <div class="shortcut-group">
-          <div class="shortcut-group-title">终端</div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd><span>复制选中文本</span></div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd><span>粘贴到终端</span></div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd><span>终端搜索</span></div>
-        </div>
-        <div class="shortcut-group">
-          <div class="shortcut-group-title">界面</div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>B</kbd><span>切换笔记面板</span></div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>S</kbd><span>保存当前笔记</span></div>
-          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>/</kbd><span>显示快捷键</span></div>
-          <div class="shortcut-row"><kbd>F11</kbd><span>全屏切换</span></div>
-        </div>
+      <div class="dialog-body" id="shortcutsBody">
       </div>
     </div>
   </div>

@@ -163,6 +163,65 @@ const messages: Record<string, Record<string, string>> = {
     chatPlaceholder: '输入消息...',
     noteTitlePlaceholder: '笔记标题...',
     noteContentPlaceholder: '在此输入笔记内容...',
+    shortsTabGroup: '标签页',
+    shortsNewTab: '新建标签',
+    shortsCloseTab: '关闭标签',
+    shortsSwitchTab: '切换到第N个标签',
+    shortsTermGroup: '终端',
+    shortsCopy: '复制选中文本',
+    shortsPaste: '粘贴到终端',
+    shortsSearch: '终端搜索',
+    shortsUiGroup: '界面',
+    shortsToggleNotes: '切换笔记面板',
+    shortsSaveNote: '保存当前笔记',
+    shortsShowShortcuts: '显示快捷键',
+    shortsFullscreen: '全屏切换',
+    paletteConnect: '连接终端',
+    paletteNewTab: '新建标签',
+    paletteToggleSessions: '切换会话管理面板',
+    paletteToggleSnippets: '切换笔记面板',
+    paletteToggleTheme: '切换深色/亮色主题',
+    paletteToggleFullscreen: '切换全屏',
+    paletteToggleLang: '切换语言',
+    paletteSearch: '终端搜索',
+    paletteZoomIn: '放大字体',
+    paletteZoomOut: '缩小字体',
+    paletteResetZoom: '重置字体大小',
+    paletteExport: '导出终端内容',
+    paletteExportBackup: '导出数据备份',
+    paletteImportBackup: '导入数据备份',
+    paletteSaveTemplate: '保存为配置模板',
+    paletteShortcuts: '显示快捷键帮助',
+    paletteToggleChat: '切换聊天面板',
+    paletteCloseTab: '关闭当前标签',
+    paletteNoMatch: '无匹配命令',
+    diagOffline: '网络断开',
+    diagOfflineDetail: '设备未连接到网络，请检查网络设置。',
+    diagAbnormalClose: '连接异常关闭',
+    diagAbnormalCloseDetail: '无法连接到 {0}:{1}。请检查:</br>1. 服务器是否运行</br>2. 防火墙是否放行端口 {1}</br>3. 主机地址是否正确',
+    diagServerClose: '服务端关闭连接',
+    diagServerCloseDetail: '服务器主动关闭了连接，可能是会话超时。',
+    diagProtocolMismatch: '协议不匹配',
+    diagProtocolMismatchDetail: '当前页面使用 HTTPS，但 WebSocket 目标为 {0}。浏览器会阻止不安全连接。请使用 wss:// 协议。',
+    diagConnectFail: '连接失败',
+    diagConnectFailDetail: '无法建立 WebSocket 连接到 {0}:{1}。<br/>请检查主机地址和端口是否正确。',
+    close: '关闭',
+    promptTemplateName: '配置名称:',
+    restoreSessionsConfirm: '检测到上次有 {0} 个活跃会话，是否恢复连接？',
+    unknown: '未知',
+    unassigned: '未分配',
+    disconnect: '断开',
+    delete: '删除',
+    me: '我',
+    viewers: '{0} 位观众',
+    anonymousUser: '用户',
+    joinedSession: '{0} 加入会话',
+    leftSession: '{0} 离开会话',
+    roleChanged: '{0} 角色变更为 {1}',
+    sessionShared: '会话已共享，邀请码: {0}',
+    shareStopped: '共享已停止',
+    importFailed: '导入失败：文件格式无效',
+    deleteSnippetConfirm: '确认删除这条笔记？',
   },
   en: {
     disconnected: 'Disconnected',
@@ -231,6 +290,65 @@ const messages: Record<string, Record<string, string>> = {
     chatPlaceholder: 'Type a message...',
     noteTitlePlaceholder: 'Note title...',
     noteContentPlaceholder: 'Type your note...',
+    shortsTabGroup: 'Tabs',
+    shortsNewTab: 'New Tab',
+    shortsCloseTab: 'Close Tab',
+    shortsSwitchTab: 'Switch to Tab N',
+    shortsTermGroup: 'Terminal',
+    shortsCopy: 'Copy Selection',
+    shortsPaste: 'Paste to Terminal',
+    shortsSearch: 'Search in Terminal',
+    shortsUiGroup: 'Interface',
+    shortsToggleNotes: 'Toggle Notes Panel',
+    shortsSaveNote: 'Save Current Note',
+    shortsShowShortcuts: 'Show Shortcuts',
+    shortsFullscreen: 'Toggle Fullscreen',
+    paletteConnect: 'Connect to Terminal',
+    paletteNewTab: 'New Tab',
+    paletteToggleSessions: 'Toggle Session Panel',
+    paletteToggleSnippets: 'Toggle Notes Panel',
+    paletteToggleTheme: 'Toggle Dark/Light Theme',
+    paletteToggleFullscreen: 'Toggle Fullscreen',
+    paletteToggleLang: 'Toggle Language',
+    paletteSearch: 'Search in Terminal',
+    paletteZoomIn: 'Zoom In',
+    paletteZoomOut: 'Zoom Out',
+    paletteResetZoom: 'Reset Font Size',
+    paletteExport: 'Export Terminal Content',
+    paletteExportBackup: 'Export Data Backup',
+    paletteImportBackup: 'Import Data Backup',
+    paletteSaveTemplate: 'Save as Template',
+    paletteShortcuts: 'Show Shortcuts Help',
+    paletteToggleChat: 'Toggle Chat Panel',
+    paletteCloseTab: 'Close Current Tab',
+    paletteNoMatch: 'No matching commands',
+    diagOffline: 'Network Offline',
+    diagOfflineDetail: 'Device is not connected to the network. Please check your network settings.',
+    diagAbnormalClose: 'Connection Abnormally Closed',
+    diagAbnormalCloseDetail: 'Cannot connect to {0}:{1}. Please check:</br>1. Whether the server is running</br>2. Whether firewall allows port {1}</br>3. Whether the host address is correct',
+    diagServerClose: 'Server Closed Connection',
+    diagServerCloseDetail: 'The server closed the connection, possibly due to session timeout.',
+    diagProtocolMismatch: 'Protocol Mismatch',
+    diagProtocolMismatchDetail: 'The current page uses HTTPS, but the WebSocket target is {0}. Browsers block insecure connections. Please use wss:// protocol.',
+    diagConnectFail: 'Connection Failed',
+    diagConnectFailDetail: 'Cannot establish WebSocket connection to {0}:{1}.<br/>Please check the host address and port are correct.',
+    close: 'Close',
+    promptTemplateName: 'Template name:',
+    restoreSessionsConfirm: 'Found {0} active sessions from last time. Reconnect?',
+    unknown: 'Unknown',
+    unassigned: 'Unassigned',
+    disconnect: 'Disconnect',
+    delete: 'Delete',
+    me: 'Me',
+    viewers: '{0} viewers',
+    anonymousUser: 'User',
+    joinedSession: '{0} joined the session',
+    leftSession: '{0} left the session',
+    roleChanged: '{0} role changed to {1}',
+    sessionShared: 'Session shared, invite code: {0}',
+    shareStopped: 'Sharing stopped',
+    importFailed: 'Import failed: Invalid file format',
+    deleteSnippetConfirm: 'Delete this note?',
   },
 };
 
@@ -356,7 +474,50 @@ function updateTabContextMenuText(): void {
   });
 }
 
-function renderShortcutsDialog(): void {}
+function renderShortcutsDialog(): void {
+  const body = $('shortcutsBody');
+  if (!body) return;
+
+  const groups = [
+    {
+      title: t('shortsTabGroup'),
+      items: [
+        { keys: ['Ctrl', 'T'], label: t('shortsNewTab') },
+        { keys: ['Ctrl', 'W'], label: t('shortsCloseTab') },
+        { keys: ['Ctrl', '1-9'], label: t('shortsSwitchTab') },
+      ],
+    },
+    {
+      title: t('shortsTermGroup'),
+      items: [
+        { keys: ['Ctrl', 'Shift', 'C'], label: t('shortsCopy') },
+        { keys: ['Ctrl', 'Shift', 'V'], label: t('shortsPaste') },
+        { keys: ['Ctrl', 'Shift', 'F'], label: t('shortsSearch') },
+      ],
+    },
+    {
+      title: t('shortsUiGroup'),
+      items: [
+        { keys: ['Ctrl', 'B'], label: t('shortsToggleNotes') },
+        { keys: ['Ctrl', 'S'], label: t('shortsSaveNote') },
+        { keys: ['Ctrl', '/'], label: t('shortsShowShortcuts') },
+        { keys: ['F11'], label: t('shortsFullscreen') },
+      ],
+    },
+  ];
+
+  body.innerHTML = groups.map(g => `
+    <div class="shortcut-group">
+      <div class="shortcut-group-title">${g.title}</div>
+      ${g.items.map(i => `
+        <div class="shortcut-row">
+          ${i.keys.map(k => `<kbd>${k}</kbd>`).join('+')}
+          <span>${i.label}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
 
 // =========================== 主题管理 ===========================
 
@@ -511,7 +672,7 @@ function saveAsTemplate(): void {
   const host = ($('hostInput') as HTMLInputElement)?.value || 'localhost';
   const port = ($('portInput') as HTMLInputElement)?.value || '22';
   const username = ($('userInput') as HTMLInputElement)?.value || 'root';
-  const name = prompt('配置名称:', `${username}@${host}`);
+  const name = prompt(t('promptTemplateName'), `${username}@${host}`);
   if (!name) return;
   const templates = loadTemplates();
   templates.push({ host, port, username, token: '', time: Date.now(), name });
@@ -551,7 +712,7 @@ function restoreLastSessions(): void {
     if (!raw) return;
     const sessions: { host: string; port: string; username: string; token: string; label: string }[] = JSON.parse(raw);
     if (sessions.length === 0) return;
-    const confirmRestore = confirm(`检测到上次有 ${sessions.length} 个活跃会话，是否恢复连接？`);
+    const confirmRestore = confirm(t('restoreSessionsConfirm', sessions.length));
     if (!confirmRestore) { localStorage.removeItem('windterm_last_sessions'); return; }
     sessions.forEach((s) => {
       ($('hostInput') as HTMLInputElement).value = s.host;
@@ -576,29 +737,29 @@ function diagnoseError(event: CloseEvent | null, tabData: TabData): ErrorDiagnos
   const port = tabData.port;
 
   if (!navigator.onLine) {
-    return { level: 'error', title: '网络断开', detail: '设备未连接到网络，请检查网络设置。' };
+    return { level: 'error', title: t('diagOffline'), detail: t('diagOfflineDetail') };
   }
 
   if (event && event.code === 1006) {
     return {
-      level: 'error', title: '连接异常关闭',
-      detail: `无法连接到 ${host}:${port}。请检查:</br>1. 服务器是否运行</br>2. 防火墙是否放行端口 ${port}</br>3. 主机地址是否正确`,
+      level: 'error', title: t('diagAbnormalClose'),
+      detail: t('diagAbnormalCloseDetail', host, port),
     };
   }
 
   if (event && event.code === 1001) {
-    return { level: 'warn', title: '服务端关闭连接', detail: '服务器主动关闭了连接，可能是会话超时。' };
+    return { level: 'warn', title: t('diagServerClose'), detail: t('diagServerCloseDetail') };
   }
 
   const url = tabData.ws?.url || '';
   if (url.startsWith('ws://') && location.protocol === 'https:') {
     return {
-      level: 'error', title: '协议不匹配',
-      detail: `当前页面使用 HTTPS，但 WebSocket 目标为 ${url}。浏览器会阻止不安全连接。请使用 wss:// 协议。`,
+      level: 'error', title: t('diagProtocolMismatch'),
+      detail: t('diagProtocolMismatchDetail', url),
     };
   }
 
-  return { level: 'error', title: '连接失败', detail: `无法建立 WebSocket 连接到 ${host}:${port}。<br/>请检查主机地址和端口是否正确。` };
+  return { level: 'error', title: t('diagConnectFail'), detail: t('diagConnectFailDetail', host, port) };
 }
 
 function showConnectionError(error: ErrorDiagnosis): void {
@@ -616,7 +777,7 @@ function showConnectionError(error: ErrorDiagnosis): void {
       <div style="font-size:32px;margin-bottom:12px;">${error.level === 'error' ? '&#x26D4;' : '&#x26A0;&#xFE0F;'}</div>
       <div style="font-size:16px;font-weight:600;color:var(--red);margin-bottom:8px;">${escapeText(error.title)}</div>
       <div style="font-size:13px;color:var(--subtext);line-height:1.6;margin-bottom:16px;">${error.detail}</div>
-      <button onclick="this.parentElement.parentElement.remove()" style="padding:6px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;">关闭</button>
+      <button class="error-close-btn" style="padding:6px 20px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;">${t('close')}</button>
     </div>`;
   container.appendChild(overlay);
 }
@@ -658,14 +819,24 @@ function formatTime(iso: string): string {
   const d = new Date(iso);
   const now = Date.now();
   const diff = now - d.getTime();
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+  if (diff < 60000) return t('justNow');
+  if (diff < 3600000) return t('minutesAgo', Math.floor(diff / 60000));
+  if (diff < 86400000) return t('hoursAgo', Math.floor(diff / 3600000));
   return d.toLocaleDateString();
 }
 
 function $(id: string): HTMLElement | null {
   return document.getElementById(id);
+}
+
+function safeWsSend(ws: WebSocket | null | undefined, data: unknown): boolean {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  try {
+    ws.send(JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // =========================== 标签管理 ===========================
@@ -720,17 +891,18 @@ function createTab(host: string, port: string, username: string): string {
   const resizeObserver = new ResizeObserver(throttle(() => {
     try { fitAddon.fit(); } catch { /* ignore */ }
     const td = state.tabs.get(tabId);
-    if (td && td.ws && td.ws.readyState === WebSocket.OPEN) {
-      td.ws.send(JSON.stringify({ action: 'resize', sessionId: td.sessionId, cols: terminal.cols, rows: terminal.rows }));
+    if (td && td.ws) {
+      safeWsSend(td.ws, { action: 'resize', sessionId: td.sessionId, cols: terminal.cols, rows: terminal.rows });
     }
   }, 200));
   if (container) resizeObserver.observe(container);
 
   terminal.onData((data: string) => {
     const td = state.tabs.get(tabId);
-    if (td && td.ws && td.ws.readyState === WebSocket.OPEN) {
-      td.ws.send(JSON.stringify({ action: 'input', sessionId: td.sessionId, input: data }));
-      td.lastActivity = Date.now();
+    if (td && td.ws) {
+      if (safeWsSend(td.ws, { action: 'input', sessionId: td.sessionId, input: data })) {
+        td.lastActivity = Date.now();
+      }
     }
   });
 
@@ -857,7 +1029,7 @@ function closeTab(tabId: string): void {
 
   if (tabData.ws) {
     if (tabData.sessionId) {
-      tabData.ws.send(JSON.stringify({ action: 'destroy', sessionId: tabData.sessionId }));
+      safeWsSend(tabData.ws, { action: 'destroy', sessionId: tabData.sessionId });
     }
     tabData.ws.onclose = null;
     tabData.ws.close();
@@ -901,15 +1073,22 @@ function connectTab(tabId: string): void {
   const gwPort = ($('portInput') as HTMLInputElement)?.value || '8080';
   const gatewayUrl = `${protocol}//${host}:${gwPort}`;
 
-  const ws = new WebSocket(gatewayUrl);
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(gatewayUrl);
+  } catch {
+    updateTabStatus(tabId, 'error');
+    tabData.terminal.writeln(`\r\n\x1b[31m${t('connectionError')}: ${t('unknownError', 0, gatewayUrl)}\x1b[0m`);
+    return;
+  }
   tabData.ws = ws;
 
   ws.onopen = () => {
     tabData.reconnectAttempts = 0;
-    ws.send(JSON.stringify({
+    safeWsSend(ws, {
       action: 'handshake',
       token: state.token || ($('tokenInput') as HTMLInputElement)?.value,
-    }));
+    });
     startHeartbeat(tabId);
   };
 
@@ -955,12 +1134,12 @@ function startHeartbeat(tabId: string): void {
   if (!tabData) return;
 
   tabData.heartbeatTimer = window.setInterval(() => {
-    if (tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
-      tabData.ws.send(JSON.stringify({ action: 'ping' }));
+    if (tabData.ws) {
+      safeWsSend(tabData.ws, { action: 'ping' });
 
       tabData.heartbeatTimeout = window.setTimeout(() => {
         tabData.terminal.writeln(`\r\n\x1b[33m${t('heartbeatTimeout')}\x1b[0m`);
-        tabData.ws!.close();
+        tabData.ws?.close();
       }, HEARTBEAT_TIMEOUT);
     }
   }, HEARTBEAT_INTERVAL);
@@ -1049,7 +1228,7 @@ function handleGatewayError(tabId: string, msg: GatewayMessage): void {
       errorColor = '31';
       break;
     default:
-      errorText = t('unknownError', String(msg.code || '未知'), escapeText(msg.error || '未知错误'));
+      errorText = t('unknownError', String(msg.code || t('unknown')), escapeText(msg.error || t('unknownError', '')));
       errorColor = '31';
   }
   tabData.terminal.writeln(`\r\n\x1b[${errorColor}m${errorText}\x1b[0m`);
@@ -1125,7 +1304,12 @@ function clearSearch(): void {
 // =========================== P3-3: 快捷键对话框 ===========================
 
 function toggleShortcutsDialog(): void {
-  $('shortcutsDialog')?.classList.toggle('hidden');
+  const dialog = $('shortcutsDialog');
+  if (!dialog) return;
+  dialog.classList.toggle('hidden');
+  if (!dialog.classList.contains('hidden')) {
+    renderShortcutsDialog();
+  }
 }
 
 // =========================== P4-1: 字体缩放 ===========================
@@ -1327,11 +1511,11 @@ function renderActiveSessions(): void {
       <span class="session-icon"><i class="fa-solid fa-terminal"></i></span>
       <span class="session-info">
         <div class="session-host">${escapeText(tab.username || 'user')}@${escapeText(tab.host)}</div>
-        <div class="session-meta">${tab.port}:${escapeText((tab.sessionId || '未分配').substring(0, 12))}</div>
+        <div class="session-meta">${tab.port}:${escapeText((tab.sessionId || t('unassigned')).substring(0, 12))}</div>
       </span>
       <span class="session-status ${tab.status}"></span>
       <span class="session-actions">
-        <button class="session-action-btn disconnect" data-action="disconnect" data-tab-id="${id}" title="断开"><i class="fa-solid fa-plug-circle-xmark"></i></button>
+        <button class="session-action-btn disconnect" data-action="disconnect" data-tab-id="${id}" title="${t('disconnect')}"><i class="fa-solid fa-plug-circle-xmark"></i></button>
       </span>
     </div>
   `).join('');
@@ -1359,7 +1543,7 @@ function renderHistorySessions(): void {
         <div class="history-host">${escapeText(c.username || 'user')}@${escapeText(c.host)}:${c.port}</div>
         <div class="history-time">${formatTime(String(c.time))}</div>
       </span>
-      <button class="history-reconnect" data-idx="${i}" title="连接"><i class="fa-solid fa-plug"></i></button>
+      <button class="history-reconnect" data-idx="${i}" title="${t('connect')}"><i class="fa-solid fa-plug"></i></button>
     </div>
   `).join('');
 
@@ -1415,8 +1599,8 @@ function renderTemplateSessions(): void {
         <div class="history-host">${escapeText(c.name || `${c.username}@${c.host}`)}</div>
         <div class="history-time">${escapeText(c.username || 'user')}@${escapeText(c.host)}:${c.port}</div>
       </span>
-      <button class="history-reconnect" data-idx="${i}" title="连接"><i class="fa-solid fa-plug"></i></button>
-      <button class="template-delete" data-idx="${i}" title="删除"><i class="fa-solid fa-xmark"></i></button>
+      <button class="history-reconnect" data-idx="${i}" title="${t('connect')}"><i class="fa-solid fa-plug"></i></button>
+      <button class="template-delete" data-idx="${i}" title="${t('delete')}"><i class="fa-solid fa-xmark"></i></button>
     </div>
   `).join('');
 
@@ -1477,17 +1661,17 @@ function sendChatMessage(): void {
   if (!input || !input.value.trim()) return;
 
   const msg: ChatMessage = {
-    user: '我', text: input.value.trim(), time: Date.now(),
+    user: t('me'), text: input.value.trim(), time: Date.now(),
   };
   chatMessages.push(msg);
   input.value = '';
   renderChatMessages();
 
   const tabData = state.tabs.get(state.currentTab || '');
-  if (tabData && tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
-    tabData.ws.send(JSON.stringify({
+  if (tabData && tabData.ws) {
+    safeWsSend(tabData.ws, {
       action: 'chat', sessionId: tabData.sessionId, text: msg.text,
-    }));
+    });
   }
 }
 
@@ -1496,19 +1680,33 @@ function addSystemChatMessage(text: string): void {
   renderChatMessages();
 }
 
+let chatRenderedCount = 0;
+
 function renderChatMessages(): void {
   const container = $('chatMessages');
   if (!container) return;
-  container.innerHTML = chatMessages.map((m) => {
-    if (m.system) return `<div class="chat-msg system">${escapeText(m.text)}</div>`;
-    return `<div class="chat-msg"><span class="chat-user">${escapeText(m.user)}</span><span class="chat-time">${formatTime(new Date(m.time).toISOString())}</span><br><span class="chat-text">${escapeText(m.text)}</span></div>`;
-  }).join('');
+  const newMessages = chatMessages.slice(chatRenderedCount);
+  if (newMessages.length === 0) return;
+  const frag = document.createDocumentFragment();
+  newMessages.forEach((m) => {
+    const div = document.createElement('div');
+    if (m.system) {
+      div.className = 'chat-msg system';
+      div.textContent = m.text;
+    } else {
+      div.className = 'chat-msg';
+      div.innerHTML = `<span class="chat-user">${escapeText(m.user)}</span><span class="chat-time">${formatTime(new Date(m.time).toISOString())}</span><br><span class="chat-text">${escapeText(m.text)}</span>`;
+    }
+    frag.appendChild(div);
+  });
+  container.appendChild(frag);
+  chatRenderedCount = chatMessages.length;
   container.scrollTop = container.scrollHeight;
 }
 
 function updateViewerCount(count: number): void {
   const el = $('viewerCount');
-  if (el) el.textContent = count > 0 ? `${count} 位观众` : '';
+  if (el) el.textContent = count > 0 ? t('viewers', count) : '';
 }
 
 function handleSharingMessage(msg: any): void {
@@ -1516,19 +1714,19 @@ function handleSharingMessage(msg: any): void {
     chatMessages.push({ user: msg.user || 'viewer', text: msg.text || '', time: Date.now() });
     renderChatMessages();
   } else if (msg.type === 'viewer_joined') {
-    addSystemChatMessage(`${msg.user || '用户'} 加入会话`);
+    addSystemChatMessage(t('joinedSession', msg.user || t('anonymousUser')));
     updateViewerCount(msg.viewerCount || 0);
   } else if (msg.type === 'viewer_left') {
-    addSystemChatMessage(`${msg.user || '用户'} 离开会话`);
+    addSystemChatMessage(t('leftSession', msg.user || t('anonymousUser')));
     updateViewerCount(msg.viewerCount || 0);
   } else if (msg.type === 'role_changed') {
-    addSystemChatMessage(`${msg.user || '用户'} 角色变更为 ${msg.role || 'viewer'}`);
+    addSystemChatMessage(t('roleChanged', msg.user || t('anonymousUser'), msg.role || 'viewer'));
   } else if (msg.type === 'share_started') {
-    addSystemChatMessage(`会话已共享，邀请码: ${msg.shareCode || 'N/A'}`);
+    addSystemChatMessage(t('sessionShared', msg.shareCode || 'N/A'));
     const chatBtn = $('toggleChat');
     if (chatBtn) chatBtn.style.display = '';
   } else if (msg.type === 'share_stopped') {
-    addSystemChatMessage('共享已停止');
+    addSystemChatMessage(t('shareStopped'));
     const chatBtn = $('toggleChat');
     if (chatBtn) chatBtn.style.display = 'none';
   }
@@ -1539,7 +1737,7 @@ function handleSharingMessage(msg: any): void {
 function createSnippet(title: string, content: string): void {
   const snippet: Snippet = {
     id: 'snp_' + Date.now(),
-    title: title || '未命名笔记',
+    title: title || t('untitledNote'),
     content: sanitizeSnippetContent(content || ''),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -1569,7 +1767,7 @@ function selectSnippet(id: string): void {
 
 function saveCurrentSnippet(): void {
   if (!state.currentSnippetId) {
-    const title = ($('snippetTitle') as HTMLInputElement)?.value || '未命名笔记';
+    const title = ($('snippetTitle') as HTMLInputElement)?.value || t('untitledNote');
     const content = $('snippetContent')?.innerHTML || '';
     createSnippet(title, content);
     return;
@@ -1578,7 +1776,7 @@ function saveCurrentSnippet(): void {
   const snippet = state.snippets.find((s) => s.id === state.currentSnippetId);
   if (!snippet) return;
 
-  snippet.title = ($('snippetTitle') as HTMLInputElement)?.value || '未命名笔记';
+  snippet.title = ($('snippetTitle') as HTMLInputElement)?.value || t('untitledNote');
   snippet.content = sanitizeSnippetContent($('snippetContent')?.innerHTML || '');
   snippet.updatedAt = new Date().toISOString();
   saveSnippets();
@@ -1587,7 +1785,7 @@ function saveCurrentSnippet(): void {
 
 function deleteCurrentSnippet(): void {
   if (!state.currentSnippetId) return;
-  if (!confirm('确认删除这条笔记？')) return;
+  if (!confirm(t('deleteSnippetConfirm'))) return;
 
   state.snippets = state.snippets.filter((s) => s.id !== state.currentSnippetId);
   saveSnippets();
@@ -1606,7 +1804,7 @@ function renderSnippetList(): void {
   const list = $('snippetList');
   if (!list) return;
   list.innerHTML = state.snippets.length === 0
-    ? '<div style="padding:14px;color:var(--overlay);font-size:12px;text-align:center">暂无笔记</div>'
+    ? `<div style="padding:14px;color:var(--overlay);font-size:12px;text-align:center">${t('noNotes')}</div>`
     : state.snippets.map((s) => `
       <div class="snippet-list-item" data-snippet-id="${s.id}">
         <span>${escapeText(s.title)}</span>
@@ -1624,7 +1822,7 @@ function createSnippetFromSelection(): void {
   if (!tabData) return;
   const text = tabData.terminal.getSelection();
   if (!text) return;
-  createSnippet('终端摘录', `<pre>${escapeText(text)}</pre>`);
+  createSnippet(t('terminalExcerpt'), `<pre>${escapeText(text)}</pre>`);
   const panel = $('snippetPanel');
   if (panel) panel.classList.remove('hidden');
 }
@@ -1670,6 +1868,37 @@ function exportData(): void {
   URL.revokeObjectURL(url);
 }
 
+function importData(): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        if (data.settings) localStorage.setItem('windterm_settings', JSON.stringify(data.settings));
+        if (data.connections) localStorage.setItem('windterm_connections', JSON.stringify(data.connections));
+        if (data.snippets) {
+          const existing = state.snippets.map((s) => s.id);
+          data.snippets.forEach((s: Snippet) => {
+            if (!existing.includes(s.id)) state.snippets.push(s);
+          });
+          saveSnippets();
+          renderSnippetList();
+        }
+        location.reload();
+      } catch {
+        alert(t('importFailed'));
+      }
+    };
+    reader.readAsText(file);
+  });
+  input.click();
+}
+
 // =========================== P6-1: 命令面板 ===========================
 
 interface PaletteCommand {
@@ -1680,26 +1909,28 @@ interface PaletteCommand {
 }
 
 const paletteCommands: PaletteCommand[] = [
-  { id: 'connect', label: '连接终端', shortcut: '', action: () => ($('connectBtn') as HTMLButtonElement)?.click() },
-  { id: 'newTab', label: '新建标签', shortcut: 'Ctrl+T', action: () => createTab(
+  { id: 'connect', label: 'paletteConnect', shortcut: '', action: () => ($('connectBtn') as HTMLButtonElement)?.click() },
+  { id: 'newTab', label: 'paletteNewTab', shortcut: 'Ctrl+T', action: () => createTab(
     ($('hostInput') as HTMLInputElement)?.value || 'localhost',
     ($('portInput') as HTMLInputElement)?.value || '22',
     ($('userInput') as HTMLInputElement)?.value || 'root',
   ) },
-  { id: 'toggleSessions', label: '切换会话管理面板', action: () => $('sessionSidebar')?.classList.toggle('hidden') },
-  { id: 'toggleSnippets', label: '切换笔记面板', shortcut: 'Ctrl+B', action: () => $('snippetPanel')?.classList.toggle('hidden') },
-  { id: 'toggleTheme', label: '切换深色/亮色主题', action: toggleTheme },
-  { id: 'toggleFullscreen', label: '切换全屏', shortcut: 'F11', action: toggleFullscreen },
-  { id: 'toggleLang', label: '切换语言', action: toggleLanguage },
-  { id: 'search', label: '终端搜索', shortcut: 'Ctrl+Shift+F', action: toggleSearchBar },
-  { id: 'zoomIn', label: '放大字体', shortcut: 'Ctrl+=', action: zoomIn },
-  { id: 'zoomOut', label: '缩小字体', shortcut: 'Ctrl+-', action: zoomOut },
-  { id: 'resetZoom', label: '重置字体大小', shortcut: 'Ctrl+0', action: resetZoom },
-  { id: 'export', label: '导出终端内容', action: exportTerminalContent },
-  { id: 'saveTemplate', label: '保存为配置模板', action: saveAsTemplate },
-  { id: 'shortcuts', label: '显示快捷键帮助', shortcut: 'Ctrl+/', action: toggleShortcutsDialog },
-  { id: 'toggleChat', label: '切换聊天面板', shortcut: 'Ctrl+Shift+C', action: toggleChatPanel },
-  { id: 'closeTab', label: '关闭当前标签', shortcut: 'Ctrl+W', action: () => { if (state.currentTab) closeTab(state.currentTab); } },
+  { id: 'toggleSessions', label: 'paletteToggleSessions', action: () => $('sessionSidebar')?.classList.toggle('hidden') },
+  { id: 'toggleSnippets', label: 'paletteToggleSnippets', shortcut: 'Ctrl+B', action: () => $('snippetPanel')?.classList.toggle('hidden') },
+  { id: 'toggleTheme', label: 'paletteToggleTheme', action: toggleTheme },
+  { id: 'toggleFullscreen', label: 'paletteToggleFullscreen', shortcut: 'F11', action: toggleFullscreen },
+  { id: 'toggleLang', label: 'paletteToggleLang', action: toggleLanguage },
+  { id: 'search', label: 'paletteSearch', shortcut: 'Ctrl+Shift+F', action: toggleSearchBar },
+  { id: 'zoomIn', label: 'paletteZoomIn', shortcut: 'Ctrl+=', action: zoomIn },
+  { id: 'zoomOut', label: 'paletteZoomOut', shortcut: 'Ctrl+-', action: zoomOut },
+  { id: 'resetZoom', label: 'paletteResetZoom', shortcut: 'Ctrl+0', action: resetZoom },
+  { id: 'export', label: 'paletteExport', action: exportTerminalContent },
+  { id: 'exportBackup', label: 'paletteExportBackup', action: exportData },
+  { id: 'importBackup', label: 'paletteImportBackup', action: importData },
+  { id: 'saveTemplate', label: 'paletteSaveTemplate', action: saveAsTemplate },
+  { id: 'shortcuts', label: 'paletteShortcuts', shortcut: 'Ctrl+/', action: toggleShortcutsDialog },
+  { id: 'toggleChat', label: 'paletteToggleChat', shortcut: 'Ctrl+Shift+C', action: toggleChatPanel },
+  { id: 'closeTab', label: 'paletteCloseTab', shortcut: 'Ctrl+W', action: () => { if (state.currentTab) closeTab(state.currentTab); } },
 ];
 
 let paletteActiveIndex = 0;
@@ -1722,18 +1953,17 @@ function filterCommands(query: string): void {
   if (!results) return;
 
   const q = query.toLowerCase().trim();
-  const filtered = q ? paletteCommands.filter((c) => c.label.toLowerCase().includes(q) || c.id.includes(q)) : paletteCommands;
+  const filtered = q ? paletteCommands.filter((c) => t(c.label).toLowerCase().includes(q) || c.id.includes(q)) : paletteCommands;
 
   if (filtered.length === 0) {
-    results.innerHTML = '<div class="palette-empty">无匹配命令</div>';
+    results.innerHTML = `<div class="palette-item disabled">${t('paletteNoMatch')}</div>`;
     return;
   }
 
-  paletteActiveIndex = Math.min(paletteActiveIndex, filtered.length - 1);
   results.innerHTML = filtered.map((cmd, i) => `
-    <div class="palette-item${i === paletteActiveIndex ? ' active' : ''}" data-cmd-id="${cmd.id}">
-      <span class="palette-label">${escapeText(cmd.label)}</span>
-      ${cmd.shortcut ? `<span class="palette-shortcut">${cmd.shortcut.replace(/\+/g, '+').split('+').map((k) => `<kbd>${k}</kbd>`).join('')}</span>` : ''}
+    <div class="palette-item${i === paletteActiveIndex ? ' active' : ''}" data-index="${i}">
+      <span>${t(cmd.label)}</span>
+      ${cmd.shortcut ? `<span class="palette-shortcut">${cmd.shortcut}</span>` : ''}
     </div>
   `).join('');
 
@@ -1893,6 +2123,8 @@ function initApp(): void {
   // P4-2: 标签右键菜单处理
   document.addEventListener('click', (e) => {
     if (!(e.target as HTMLElement).closest('#tabContextMenu')) hideTabContextMenu();
+    const closeBtn = (e.target as HTMLElement).closest('.error-close-btn');
+    if (closeBtn) { (closeBtn.parentElement as HTMLElement)?.parentElement?.remove(); }
   });
   document.querySelectorAll('#tabContextMenu .menu-item').forEach((item) => {
     item.addEventListener('click', (e) => {
@@ -1980,8 +2212,8 @@ function initApp(): void {
           break;
         case 'paste':
           navigator.clipboard.readText().then((text) => {
-            if (tabData && tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
-              tabData.ws.send(JSON.stringify({ action: 'input', sessionId: tabData.sessionId, input: text }));
+            if (tabData && tabData.ws) {
+              safeWsSend(tabData.ws, { action: 'input', sessionId: tabData.sessionId, input: text });
             }
           }).catch(() => {});
           break;
@@ -2011,8 +2243,8 @@ function initApp(): void {
     if ((kb.ctrlKey || kb.metaKey) && kb.shiftKey && kb.key === 'V') {
       navigator.clipboard.readText().then((text) => {
         const tabData = state.tabs.get(state.currentTab || '');
-        if (tabData && tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
-          tabData.ws.send(JSON.stringify({ action: 'input', sessionId: tabData.sessionId, input: text }));
+        if (tabData && tabData.ws) {
+          safeWsSend(tabData.ws, { action: 'input', sessionId: tabData.sessionId, input: text });
         }
       }).catch(() => {});
     }
@@ -2094,6 +2326,4 @@ if (document.readyState !== 'loading') {
 } else {
   document.addEventListener('DOMContentLoaded', initApp);
 }
-
-console.log('WindTerm AI Web Client (TypeScript Production) 已就绪');
 
