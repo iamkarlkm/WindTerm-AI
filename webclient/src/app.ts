@@ -9,6 +9,7 @@ interface ConnectionConfig {
   username: string;
   token: string;
   time: number;
+  name?: string;
 }
 
 interface TabData {
@@ -23,6 +24,7 @@ interface TabData {
   port: string;
   username: string;
   label: string;
+  fontSize: number;
   reconnectAttempts: number;
   reconnectTimer: number | null;
   heartbeatTimer: number | null;
@@ -60,6 +62,7 @@ interface AppState {
   snippets: Snippet[];
   currentSnippetId: string | null;
   token: string;
+  fontSize: number;
   autosaveTimer: number | null;
 }
 
@@ -70,6 +73,8 @@ declare const Terminal: any;
 declare const FitAddon: any;
 declare const WebLinksAddon: any;
 declare const SearchAddon: any;
+declare const Unicode11Addon: any;
+declare const LigaturesAddon: any;
 declare const DOMPurify: any;
 
 // Terminal/FitAddon types for tab data
@@ -239,6 +244,7 @@ const state: AppState = {
   snippets: [],
   currentSnippetId: null,
   token: '',
+  fontSize: loadSettings().fontSize,
   autosaveTimer: null,
 };
 
@@ -296,6 +302,81 @@ function addConnection(host: string, port: string, username: string, token: stri
   list.unshift({ host, port, username, token, time: Date.now() });
   saveConnections(list);
 }
+
+// =========================== P5-1: 连接配置模板 ===========================
+
+function loadTemplates(): ConnectionConfig[] {
+  try {
+    const raw = localStorage.getItem('windterm_templates');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveTemplates(list: ConnectionConfig[]): void {
+  localStorage.setItem('windterm_templates', JSON.stringify(list));
+}
+
+function saveAsTemplate(): void {
+  const host = ($('hostInput') as HTMLInputElement)?.value || 'localhost';
+  const port = ($('portInput') as HTMLInputElement)?.value || '22';
+  const username = ($('userInput') as HTMLInputElement)?.value || 'root';
+  const name = prompt('配置名称:', `${username}@${host}`);
+  if (!name) return;
+  const templates = loadTemplates();
+  templates.push({ host, port, username, token: '', time: Date.now(), name });
+  saveTemplates(templates);
+  refreshSessionSidebar();
+}
+
+function deleteTemplate(idx: number): void {
+  const templates = loadTemplates();
+  templates.splice(idx, 1);
+  saveTemplates(templates);
+  refreshSessionSidebar();
+}
+
+// =========================== P5-2: 会话自动恢复 ===========================
+
+function saveSessionState(): void {
+  const sessions: { host: string; port: string; username: string; token: string; label: string }[] = [];
+  state.tabs.forEach((tab) => {
+    if (tab.status === 'connected' || tab.status === 'connecting' || tab.status === 'reconnecting') {
+      sessions.push({
+        host: tab.host, port: tab.port, username: tab.username,
+        token: state.token, label: tab.label,
+      });
+    }
+  });
+  if (sessions.length > 0) {
+    localStorage.setItem('windterm_last_sessions', JSON.stringify(sessions));
+  } else {
+    localStorage.removeItem('windterm_last_sessions');
+  }
+}
+
+function restoreLastSessions(): void {
+  try {
+    const raw = localStorage.getItem('windterm_last_sessions');
+    if (!raw) return;
+    const sessions: { host: string; port: string; username: string; token: string; label: string }[] = JSON.parse(raw);
+    if (sessions.length === 0) return;
+    const confirmRestore = confirm(`检测到上次有 ${sessions.length} 个活跃会话，是否恢复连接？`);
+    if (!confirmRestore) { localStorage.removeItem('windterm_last_sessions'); return; }
+    sessions.forEach((s) => {
+      ($('hostInput') as HTMLInputElement).value = s.host;
+      ($('portInput') as HTMLInputElement).value = s.port;
+      ($('userInput') as HTMLInputElement).value = s.username;
+      state.token = s.token || '';
+      storeToken(state.token);
+      createTab(s.host, s.port, s.username);
+    });
+  } catch { /* ignore */ }
+}
+
+// 页面关闭前保存活跃会话
+window.addEventListener('beforeunload', () => {
+  saveSessionState();
+});
 
 // =========================== 连接错误诊断 ===========================
 
@@ -416,7 +497,7 @@ function createTab(host: string, port: string, username: string): string {
   const terminal = new Terminal({
     cursorBlink: true,
     cursorStyle: 'bar',
-    fontSize: 14,
+    fontSize: state.fontSize,
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     scrollback: 50000,
     theme: {
@@ -433,9 +514,12 @@ function createTab(host: string, port: string, username: string): string {
   const fitAddon = new FitAddon.FitAddon();
   const webLinksAddon = new WebLinksAddon.WebLinksAddon();
   const searchAddon = new SearchAddon.SearchAddon();
+  const unicode11Addon = new Unicode11Addon.Unicode11Addon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(webLinksAddon);
   terminal.loadAddon(searchAddon);
+  try { terminal.loadAddon(unicode11Addon); terminal.unicode.activeVersion = '11'; } catch { /* ignore */ }
+  try { terminal.loadAddon(new LigaturesAddon.LigaturesAddon()); } catch { /* ignore */ }
 
   const container = $('terminalContainer');
   if (container) terminal.open(container);
@@ -476,7 +560,7 @@ function createTab(host: string, port: string, username: string): string {
 
   const tabData: TabData = {
     sessionId: null, ws: null, terminal, fitAddon, searchAddon, resizeObserver,
-    status: 'connecting', host, port, username, label,
+    status: 'connecting', host, port, username, label, fontSize: state.fontSize,
     reconnectAttempts: 0, reconnectTimer: null,
     heartbeatTimer: null, heartbeatTimeout: null,
     lastActivity: Date.now(),
@@ -494,6 +578,12 @@ function createTab(host: string, port: string, username: string): string {
     if ((e.target as HTMLElement).classList.contains('tab-close')) return;
     if ((e.target as HTMLElement).classList.contains('tab-rename-input')) return;
     switchTab(tabId);
+  });
+
+  // P4-2: 标签右键菜单
+  tabEl.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showTabContextMenu(tabId, (e as MouseEvent).clientX, (e as MouseEvent).clientY);
   });
 
   // P3-2: 双击重命名标签
@@ -733,6 +823,10 @@ function handleGatewayMessage(tabId: string, msg: GatewayMessage): void {
     case 'input_sent':
     case 'resized':
       break;
+    // P7-1: 共享/聊天消息
+    default:
+      handleSharingMessage(msg);
+      break;
   }
 }
 
@@ -841,6 +935,141 @@ function clearSearch(): void {
 
 function toggleShortcutsDialog(): void {
   $('shortcutsDialog')?.classList.toggle('hidden');
+}
+
+// =========================== P4-1: 字体缩放 ===========================
+
+function zoomIn(): void {
+  state.fontSize = Math.min(state.fontSize + 1, 32);
+  applyFontSizeToAll();
+  saveSettings({
+    fontSize: state.fontSize,
+    language: currentLang,
+    theme: document.documentElement.classList.contains('light-theme') ? 'light' : 'dark',
+    sidebarVisible: !$('sessionSidebar')?.classList.contains('hidden'),
+  });
+}
+
+function zoomOut(): void {
+  state.fontSize = Math.max(state.fontSize - 1, 8);
+  applyFontSizeToAll();
+  saveSettings({
+    fontSize: state.fontSize,
+    language: currentLang,
+    theme: document.documentElement.classList.contains('light-theme') ? 'light' : 'dark',
+    sidebarVisible: !$('sessionSidebar')?.classList.contains('hidden'),
+  });
+}
+
+function resetZoom(): void {
+  state.fontSize = 14;
+  applyFontSizeToAll();
+  saveSettings({
+    fontSize: state.fontSize,
+    language: currentLang,
+    theme: document.documentElement.classList.contains('light-theme') ? 'light' : 'dark',
+    sidebarVisible: !$('sessionSidebar')?.classList.contains('hidden'),
+  });
+}
+
+function applyFontSizeToAll(): void {
+  state.tabs.forEach((tab) => {
+    tab.fontSize = state.fontSize;
+    try { tab.terminal.options.fontSize = state.fontSize; } catch { /* ignore */ }
+    try { tab.fitAddon.fit(); } catch { /* ignore */ }
+  });
+}
+
+// =========================== P4-4: 终端内容导出 ===========================
+
+function exportTerminalContent(): void {
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (!tabData) return;
+  try {
+    const lines = tabData.terminal.buffer.active.base;
+    let text = '';
+    for (let i = 0; i < lines; i++) {
+      const line = tabData.terminal.buffer.active.getLine(i);
+      if (line) text += line.translateToString() + '\n';
+    }
+    downloadText(text, `windterm-export-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`);
+  } catch {
+    tabData.terminal.selectAll();
+    const text = tabData.terminal.getSelection();
+    if (text) downloadText(text);
+  }
+}
+
+function downloadText(content: string, filename?: string): void {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'export.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// =========================== P4-2: 标签右键菜单 ===========================
+
+let tabContextMenuTarget: string | null = null;
+
+function showTabContextMenu(tabId: string, x: number, y: number): void {
+  tabContextMenuTarget = tabId;
+  const menu = $('tabContextMenu');
+  if (!menu) return;
+  menu.classList.remove('hidden');
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+}
+
+function hideTabContextMenu(): void {
+  const menu = $('tabContextMenu');
+  if (menu) menu.classList.add('hidden');
+  tabContextMenuTarget = null;
+}
+
+function closeAllTabs(): void {
+  const ids = [...state.tabs.keys()];
+  ids.forEach((id) => closeTab(id));
+}
+
+function closeOtherTabs(tabId: string): void {
+  const ids = [...state.tabs.keys()].filter((id) => id !== tabId);
+  ids.forEach((id) => closeTab(id));
+}
+
+function duplicateTab(tabId: string): void {
+  const tabData = state.tabs.get(tabId);
+  if (!tabData) return;
+  createTab(tabData.host, tabData.port, tabData.username);
+}
+
+function triggerTabRename(tabId: string): void {
+  const tabEl = document.querySelector(`.tab-item[data-tab-id="${tabId}"]`);
+  if (!tabEl) return;
+  const span = tabEl.querySelector('span');
+  if (!span || tabEl.querySelector('.tab-rename-input')) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tab-rename-input';
+  const tabData = state.tabs.get(tabId);
+  input.value = tabData?.label || '';
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  const finishRename = () => {
+    const newLabel = input.value.trim() || (tabData?.label || '');
+    if (tabData) tabData.label = newLabel;
+    const newSpan = document.createElement('span');
+    newSpan.textContent = newLabel;
+    input.replaceWith(newSpan);
+  };
+  input.addEventListener('blur', finishRename);
+  input.addEventListener('keydown', (ke) => {
+    if ((ke as KeyboardEvent).key === 'Enter') finishRename();
+    if ((ke as KeyboardEvent).key === 'Escape') { if (tabData) input.value = tabData.label; finishRename(); }
+  });
 }
 
 // =========================== 状态更新 ===========================
@@ -975,6 +1204,143 @@ function renderHistorySessions(): void {
 function refreshSessionSidebar(): void {
   renderActiveSessions();
   renderHistorySessions();
+  renderTemplateSessions();
+}
+
+// =========================== 模板渲染 ===========================
+
+function renderTemplateSessions(): void {
+  const list = $('templateSessionList');
+  if (!list) return;
+  const templates = loadTemplates();
+  if (templates.length === 0) {
+    list.innerHTML = `<div class="sidebar-empty">${t('noConnectionHistory')}</div>`;
+    return;
+  }
+  list.innerHTML = templates.map((c, i) => `
+    <div class="template-entry" data-idx="${i}">
+      <span class="history-icon"><i class="fa-solid fa-bookmark"></i></span>
+      <span class="history-info">
+        <div class="history-host">${escapeText(c.name || `${c.username}@${c.host}`)}</div>
+        <div class="history-time">${escapeText(c.username || 'user')}@${escapeText(c.host)}:${c.port}</div>
+      </span>
+      <button class="history-reconnect" data-idx="${i}" title="连接"><i class="fa-solid fa-plug"></i></button>
+      <button class="template-delete" data-idx="${i}" title="删除"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.template-entry').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.history-reconnect, .template-delete')) return;
+      const idx = parseInt((el as HTMLElement).dataset.idx!);
+      const c = templates[idx];
+      if (c) {
+        (($('hostInput') as HTMLInputElement)).value = c.host;
+        (($('portInput') as HTMLInputElement)).value = c.port;
+        (($('userInput') as HTMLInputElement)).value = c.username;
+        state.token = c.token || '';
+        storeToken(state.token);
+        createTab(c.host, c.port, c.username);
+      }
+    });
+  });
+  list.querySelectorAll('.history-reconnect').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt((btn as HTMLElement).dataset.idx!);
+      const c = templates[idx];
+      if (c) {
+        state.token = c.token || '';
+        storeToken(state.token);
+        createTab(c.host, c.port, c.username);
+      }
+    });
+  });
+  list.querySelectorAll('.template-delete').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt((btn as HTMLElement).dataset.idx!);
+      deleteTemplate(idx);
+    });
+  });
+}
+
+// =========================== P7-1: 共享会话聊天 ===========================
+
+interface ChatMessage {
+  user: string;
+  text: string;
+  time: number;
+  system?: boolean;
+}
+
+const chatMessages: ChatMessage[] = [];
+
+function toggleChatPanel(): void {
+  const panel = $('chatPanel');
+  if (panel) panel.classList.toggle('hidden');
+}
+
+function sendChatMessage(): void {
+  const input = $('chatInput') as HTMLInputElement;
+  if (!input || !input.value.trim()) return;
+
+  const msg: ChatMessage = {
+    user: '我', text: input.value.trim(), time: Date.now(),
+  };
+  chatMessages.push(msg);
+  input.value = '';
+  renderChatMessages();
+
+  const tabData = state.tabs.get(state.currentTab || '');
+  if (tabData && tabData.ws && tabData.ws.readyState === WebSocket.OPEN) {
+    tabData.ws.send(JSON.stringify({
+      action: 'chat', sessionId: tabData.sessionId, text: msg.text,
+    }));
+  }
+}
+
+function addSystemChatMessage(text: string): void {
+  chatMessages.push({ user: '', text, time: Date.now(), system: true });
+  renderChatMessages();
+}
+
+function renderChatMessages(): void {
+  const container = $('chatMessages');
+  if (!container) return;
+  container.innerHTML = chatMessages.map((m) => {
+    if (m.system) return `<div class="chat-msg system">${escapeText(m.text)}</div>`;
+    return `<div class="chat-msg"><span class="chat-user">${escapeText(m.user)}</span><span class="chat-time">${formatTime(new Date(m.time).toISOString())}</span><br><span class="chat-text">${escapeText(m.text)}</span></div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function updateViewerCount(count: number): void {
+  const el = $('viewerCount');
+  if (el) el.textContent = count > 0 ? `${count} 位观众` : '';
+}
+
+function handleSharingMessage(msg: any): void {
+  if (msg.type === 'chat_message') {
+    chatMessages.push({ user: msg.user || 'viewer', text: msg.text || '', time: Date.now() });
+    renderChatMessages();
+  } else if (msg.type === 'viewer_joined') {
+    addSystemChatMessage(`${msg.user || '用户'} 加入会话`);
+    updateViewerCount(msg.viewerCount || 0);
+  } else if (msg.type === 'viewer_left') {
+    addSystemChatMessage(`${msg.user || '用户'} 离开会话`);
+    updateViewerCount(msg.viewerCount || 0);
+  } else if (msg.type === 'role_changed') {
+    addSystemChatMessage(`${msg.user || '用户'} 角色变更为 ${msg.role || 'viewer'}`);
+  } else if (msg.type === 'share_started') {
+    addSystemChatMessage(`会话已共享，邀请码: ${msg.shareCode || 'N/A'}`);
+    const chatBtn = $('toggleChat');
+    if (chatBtn) chatBtn.style.display = '';
+  } else if (msg.type === 'share_stopped') {
+    addSystemChatMessage('共享已停止');
+    const chatBtn = $('toggleChat');
+    if (chatBtn) chatBtn.style.display = 'none';
+  }
 }
 
 // =========================== 笔记系统 ===========================
@@ -1138,7 +1504,96 @@ function exportData(): void {
   URL.revokeObjectURL(url);
 }
 
-// =========================== 页面卸载清理 ===========================
+// =========================== P6-1: 命令面板 ===========================
+
+interface PaletteCommand {
+  id: string;
+  label: string;
+  shortcut?: string;
+  action: () => void;
+}
+
+const paletteCommands: PaletteCommand[] = [
+  { id: 'connect', label: '连接终端', shortcut: '', action: () => ($('connectBtn') as HTMLButtonElement)?.click() },
+  { id: 'newTab', label: '新建标签', shortcut: 'Ctrl+T', action: () => createTab(
+    ($('hostInput') as HTMLInputElement)?.value || 'localhost',
+    ($('portInput') as HTMLInputElement)?.value || '22',
+    ($('userInput') as HTMLInputElement)?.value || 'root',
+  ) },
+  { id: 'toggleSessions', label: '切换会话管理面板', action: () => $('sessionSidebar')?.classList.toggle('hidden') },
+  { id: 'toggleSnippets', label: '切换笔记面板', shortcut: 'Ctrl+B', action: () => $('snippetPanel')?.classList.toggle('hidden') },
+  { id: 'toggleTheme', label: '切换深色/亮色主题', action: toggleTheme },
+  { id: 'toggleFullscreen', label: '切换全屏', shortcut: 'F11', action: toggleFullscreen },
+  { id: 'toggleLang', label: '切换语言', action: () => { toggleLanguage(); updateStatus(); refreshSessionSidebar(); } },
+  { id: 'search', label: '终端搜索', shortcut: 'Ctrl+Shift+F', action: toggleSearchBar },
+  { id: 'zoomIn', label: '放大字体', shortcut: 'Ctrl+=', action: zoomIn },
+  { id: 'zoomOut', label: '缩小字体', shortcut: 'Ctrl+-', action: zoomOut },
+  { id: 'resetZoom', label: '重置字体大小', shortcut: 'Ctrl+0', action: resetZoom },
+  { id: 'export', label: '导出终端内容', action: exportTerminalContent },
+  { id: 'saveTemplate', label: '保存为配置模板', action: saveAsTemplate },
+  { id: 'shortcuts', label: '显示快捷键帮助', shortcut: 'Ctrl+/', action: toggleShortcutsDialog },
+  { id: 'toggleChat', label: '切换聊天面板', shortcut: 'Ctrl+Shift+C', action: toggleChatPanel },
+  { id: 'closeTab', label: '关闭当前标签', shortcut: 'Ctrl+W', action: () => { if (state.currentTab) closeTab(state.currentTab); } },
+];
+
+let paletteActiveIndex = 0;
+
+function toggleCommandPalette(): void {
+  const palette = $('commandPalette');
+  if (!palette) return;
+  palette.classList.toggle('hidden');
+  const input = $('paletteInput') as HTMLInputElement;
+  if (!palette.classList.contains('hidden') && input) {
+    input.value = '';
+    input.focus();
+    paletteActiveIndex = 0;
+    filterCommands('');
+  }
+}
+
+function filterCommands(query: string): void {
+  const results = $('paletteResults');
+  if (!results) return;
+
+  const q = query.toLowerCase().trim();
+  const filtered = q ? paletteCommands.filter((c) => c.label.toLowerCase().includes(q) || c.id.includes(q)) : paletteCommands;
+
+  if (filtered.length === 0) {
+    results.innerHTML = '<div class="palette-empty">无匹配命令</div>';
+    return;
+  }
+
+  paletteActiveIndex = Math.min(paletteActiveIndex, filtered.length - 1);
+  results.innerHTML = filtered.map((cmd, i) => `
+    <div class="palette-item${i === paletteActiveIndex ? ' active' : ''}" data-cmd-id="${cmd.id}">
+      <span class="palette-label">${escapeText(cmd.label)}</span>
+      ${cmd.shortcut ? `<span class="palette-shortcut">${cmd.shortcut.replace(/\+/g, '+').split('+').map((k) => `<kbd>${k}</kbd>`).join('')}</span>` : ''}
+    </div>
+  `).join('');
+
+  results.querySelectorAll('.palette-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const cmd = paletteCommands.find((c) => c.id === (el as HTMLElement).dataset.cmdId);
+      if (cmd) { cmd.action(); toggleCommandPalette(); }
+    });
+  });
+}
+
+function executeActivePaletteCommand(): void {
+  const results = $('paletteResults');
+  if (!results) return;
+  const active = results.querySelector('.palette-item.active') as HTMLElement;
+  if (!active) return;
+  const cmd = paletteCommands.find((c) => c.id === active.dataset.cmdId);
+  if (cmd) { cmd.action(); toggleCommandPalette(); }
+}
+
+// =========================== P6-2: PWA ===========================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 window.addEventListener('unload', () => {
   state.tabs.forEach((tab) => {
     if (tab.reconnectTimer) clearTimeout(tab.reconnectTimer);
@@ -1157,6 +1612,9 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshSessionSidebar();
   initTheme();
 
+  // P5-2: 恢复上次会话
+  setTimeout(() => restoreLastSessions(), 500);
+
   const savedConn = loadConnections();
   if (savedConn.length > 0) {
     (($('hostInput') as HTMLInputElement)).value = savedConn[0].host || '';
@@ -1174,6 +1632,35 @@ document.addEventListener('DOMContentLoaded', () => {
     storeToken(state.token);
     addConnection(host, port, username, state.token);
     createTab(host, port, username);
+  });
+
+  // P5-1: 保存为配置模板
+  $('saveTemplateBtn')?.addEventListener('click', saveAsTemplate);
+
+  // P6-1: 命令面板
+  $('commandPalette')?.querySelector('.dialog-overlay')?.addEventListener('click', toggleCommandPalette);
+  $('paletteInput')?.addEventListener('input', (e) => {
+    filterCommands((e.target as HTMLInputElement).value);
+  });
+  $('paletteInput')?.addEventListener('keydown', (e) => {
+    const kb = e as KeyboardEvent;
+    const results = $('paletteResults');
+    if (!results) return;
+    const items = results.querySelectorAll('.palette-item');
+    if (kb.key === 'ArrowDown') {
+      kb.preventDefault();
+      paletteActiveIndex = Math.min(paletteActiveIndex + 1, items.length - 1);
+      filterCommands(($('paletteInput') as HTMLInputElement)?.value || '');
+    } else if (kb.key === 'ArrowUp') {
+      kb.preventDefault();
+      paletteActiveIndex = Math.max(paletteActiveIndex - 1, 0);
+      filterCommands(($('paletteInput') as HTMLInputElement)?.value || '');
+    } else if (kb.key === 'Enter') {
+      kb.preventDefault();
+      executeActivePaletteCommand();
+    } else if (kb.key === 'Escape') {
+      toggleCommandPalette();
+    }
   });
 
   // 回车连接
@@ -1207,6 +1694,14 @@ document.addEventListener('DOMContentLoaded', () => {
     $('snippetPanel')?.classList.add('hidden');
   });
 
+  // P7-1: 聊天面板
+  $('toggleChat')?.addEventListener('click', toggleChatPanel);
+  $('closeChatBtn')?.addEventListener('click', toggleChatPanel);
+  $('sendChatBtn')?.addEventListener('click', sendChatMessage);
+  $('chatInput')?.addEventListener('keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Enter') { e.preventDefault(); sendChatMessage(); }
+  });
+
   // P2-2: 主题/全屏/语言切换
   $('toggleTheme')?.addEventListener('click', toggleTheme);
   $('toggleFullscreen')?.addEventListener('click', toggleFullscreen);
@@ -1230,6 +1725,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // P3-3: 快捷键对话框
   $('closeShortcutsBtn')?.addEventListener('click', toggleShortcutsDialog);
   $('shortcutsDialog')?.querySelector('.dialog-overlay')?.addEventListener('click', toggleShortcutsDialog);
+
+  // P4-2: 标签右键菜单处理
+  document.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('#tabContextMenu')) hideTabContextMenu();
+  });
+  document.querySelectorAll('#tabContextMenu .menu-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = (item as HTMLElement).dataset.action;
+      if (!action || !tabContextMenuTarget) { hideTabContextMenu(); return; }
+      switch (action) {
+        case 'close': closeTab(tabContextMenuTarget); break;
+        case 'closeOthers': closeOtherTabs(tabContextMenuTarget); break;
+        case 'closeAll': closeAllTabs(); break;
+        case 'duplicate': duplicateTab(tabContextMenuTarget); break;
+        case 'rename': triggerTabRename(tabContextMenuTarget); break;
+      }
+      hideTabContextMenu();
+    });
+  });
 
   // 笔记操作
   $('newSnippetBtn')?.addEventListener('click', () => {
@@ -1312,6 +1827,9 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'saveSnippet':
           createSnippetFromSelection();
           break;
+        case 'export':
+          exportTerminalContent();
+          break;
       }
     });
   });
@@ -1366,6 +1884,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (kb.key === 'F11') {
       kb.preventDefault();
       toggleFullscreen();
+    }
+    // P4-1: 字体缩放
+    if ((kb.ctrlKey || kb.metaKey) && (kb.key === '=' || kb.key === '+')) {
+      kb.preventDefault();
+      zoomIn();
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.key === '-') {
+      kb.preventDefault();
+      zoomOut();
+    }
+    if ((kb.ctrlKey || kb.metaKey) && kb.key === '0') {
+      kb.preventDefault();
+      resetZoom();
+    }
+    // P6-1: 命令面板
+    if ((kb.ctrlKey || kb.metaKey) && kb.shiftKey && kb.key === 'P') {
+      kb.preventDefault();
+      toggleCommandPalette();
+    }
+    // P7-1: 聊天面板
+    if ((kb.ctrlKey || kb.metaKey) && kb.shiftKey && kb.key === 'C') {
+      kb.preventDefault();
+      toggleChatPanel();
     }
   });
 

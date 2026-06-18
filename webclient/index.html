@@ -21,6 +21,7 @@
   <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -37,10 +38,12 @@
         <input type="text" id="userInput" placeholder="用户" class="desktop-only" title="用户名">
         <input type="text" id="tokenInput" placeholder="令牌" style="width:110px" title="认证令牌">
         <button id="connectBtn" class="btn-primary"><i class="fa-solid fa-plug"></i> <span class="desktop-only">连接</span></button>
+        <button id="saveTemplateBtn" class="btn-sm desktop-only" title="保存为配置模板"><i class="fa-solid fa-bookmark"></i></button>
       </div>
       <div class="actions">
         <button id="toggleSessions" class="btn-icon" title="会话管理"><i class="fa-solid fa-server"></i></button>
         <button id="toggleSnippets" class="btn-icon" title="碎片笔记"><i class="fa-solid fa-note-sticky"></i></button>
+        <button id="toggleChat" class="btn-icon" title="会话聊天" style="display:none"><i class="fa-solid fa-comments"></i></button>
         <button id="toggleTheme" class="btn-icon" title="切换主题"><i class="fa-solid fa-moon"></i></button>
         <button id="toggleFullscreen" class="btn-icon" title="全屏"><i class="fa-solid fa-expand"></i></button>
         <button id="toggleLang" class="btn-icon" title="Switch Language"><i class="fa-solid fa-language"></i></button>
@@ -67,6 +70,12 @@
             <div class="sidebar-section-title">连接历史</div>
             <div id="historySessionList">
               <div class="sidebar-empty">无连接历史</div>
+            </div>
+          </div>
+          <div class="sidebar-section">
+            <div class="sidebar-section-title">配置模板</div>
+            <div id="templateSessionList">
+              <div class="sidebar-empty">无配置模板</div>
             </div>
           </div>
         </div>
@@ -149,6 +158,18 @@
     <div class="menu-sep"></div>
     <div class="menu-item" data-action="clear"><i class="fa-solid fa-eraser"></i> 清除终端</div>
     <div class="menu-item" data-action="saveSnippet"><i class="fa-solid fa-note-sticky"></i> 保存为笔记</div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="export"><i class="fa-solid fa-file-export"></i> 导出终端内容</div>
+  </div>
+
+  <!-- P4-2: 标签右键菜单 -->
+  <div id="tabContextMenu" class="hidden">
+    <div class="menu-item" data-action="close"><i class="fa-solid fa-xmark"></i> 关闭标签</div>
+    <div class="menu-item" data-action="closeOthers"><i class="fa-solid fa-window-restore"></i> 关闭其他</div>
+    <div class="menu-item" data-action="closeAll"><i class="fa-solid fa-trash"></i> 关闭全部</div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="duplicate"><i class="fa-solid fa-copy"></i> 复制标签</div>
+    <div class="menu-item" data-action="rename"><i class="fa-solid fa-pen"></i> 重命名</div>
   </div>
 
   <!-- P3-1: 终端搜索栏 -->
@@ -194,10 +215,40 @@
     </div>
   </div>
 
-  <!-- 依赖库 -->
+  <!-- P6-1: 命令面板 -->
+  <div id="commandPalette" class="hidden">
+    <div class="dialog-overlay"></div>
+    <div class="palette-box">
+      <div class="palette-input-wrap">
+        <i class="fa-solid fa-terminal palette-icon"></i>
+        <input type="text" id="paletteInput" placeholder="输入命令..." autocomplete="off">
+      </div>
+      <div id="paletteResults"></div>
+      </div>
+    </div>
+
+    <!-- P7-1: 共享会话聊天面板 -->
+    <div id="chatPanel" class="hidden">
+      <div id="chatHeader">
+        <h3><i class="fa-solid fa-comments"></i> 会话聊天</h3>
+        <div>
+          <span id="viewerCount" style="font-size:11px;color:var(--overlay);margin-right:8px;"></span>
+          <button id="closeChatBtn" class="btn-icon"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div id="chatMessages"></div>
+      <div id="chatInputBar">
+        <input type="text" id="chatInput" placeholder="输入消息...">
+        <button id="sendChatBtn" class="btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
+
+    <!-- 依赖库 -->
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11@0.6.0/lib/xterm-addon-unicode11.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-ligatures@0.8.0/lib/xterm-addon-ligatures.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.0/dist/purify.min.js"></script>
   <!-- 应用逻辑 -->
