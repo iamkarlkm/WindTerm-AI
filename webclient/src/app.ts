@@ -475,7 +475,10 @@ function refreshAllUI(): void {
   });
   // 更新笔记内容区 placeholder
   const snippetContent = document.getElementById('snippetContent');
-  if (snippetContent) snippetContent.setAttribute('placeholder', t('noteContentPlaceholder'));
+  if (snippetContent) {
+    snippetContent.setAttribute('placeholder', t('noteContentPlaceholder'));
+    snippetContent.setAttribute('aria-label', t('noteContentPlaceholder'));
+  }
   // 更新编辑器工具栏 tooltip
   const toolbarBtns: Record<string, string> = {
     bold: 'toolbarBold', italic: 'toolbarItalic',
@@ -497,6 +500,8 @@ function refreshAllUI(): void {
   updateContextMenuText();
   // 更新标签右键菜单
   updateTabContextMenuText();
+  // 更新标签关闭按钮 aria-label
+  document.querySelectorAll('.tab-close').forEach((el) => { el.setAttribute('aria-label', t('tabClose')); });
   // 更新笔记列表 (重新渲染以刷新标题和 time)
   renderSnippetList();
   if (state.currentSnippetId) {
@@ -910,7 +915,9 @@ function createTab(host: string, port: string, username: string): string {
 
   const tabEl = document.createElement('div');
   tabEl.className = 'tab-item active';
-  tabEl.innerHTML = `<span>${escapeText(label)}</span><span class="tab-close" data-tab="${tabId}">&times;</span>`;
+  tabEl.setAttribute('role', 'tab');
+  tabEl.setAttribute('aria-selected', 'true');
+  tabEl.innerHTML = `<span>${escapeText(label)}</span><span class="tab-close" data-tab="${tabId}" aria-label="${t('tabClose')}">&times;</span>`;
   tabEl.dataset.tabId = tabId;
 
   document.querySelectorAll('.tab-item').forEach((t) => t.classList.remove('active'));
@@ -1069,23 +1076,29 @@ function createTab(host: string, port: string, username: string): string {
 }
 
 function switchTab(tabId: string): void {
-  document.querySelectorAll('.tab-item').forEach((t) => t.classList.remove('active'));
+  if (state.currentTab) {
+    const prevTabEl = document.querySelector(`.tab-item[data-tab-id="${state.currentTab}"]`);
+    if (prevTabEl) { prevTabEl.classList.remove('active'); prevTabEl.setAttribute('aria-selected', 'false'); }
+    const prevTerm = state.tabs.get(state.currentTab);
+    if (prevTerm) prevTerm.terminal.element!.style.display = 'none';
+  }
   const tabEl = document.querySelector(`.tab-item[data-tab-id="${tabId}"]`);
-  if (tabEl) tabEl.classList.add('active');
+  if (tabEl) { tabEl.classList.add('active'); tabEl.setAttribute('aria-selected', 'true'); }
 
-  state.tabs.forEach((tab, id) => {
-    tab.terminal.element!.style.display = id === tabId ? '' : 'none';
-  });
+  const tabData = state.tabs.get(tabId);
+  if (tabData) {
+    tabData.terminal.element!.style.display = '';
+    updateStatus(tabData.status);
+  }
 
   state.currentTab = tabId;
-  const tabData = state.tabs.get(tabId);
-  if (tabData) updateStatus(tabData.status);
 }
 
 function closeTab(tabId: string): void {
   const tabData = state.tabs.get(tabId);
   if (!tabData) return;
 
+  tabData.status = 'disconnected_by_user';
   if (tabData.reconnectTimer) { clearTimeout(tabData.reconnectTimer); tabData.reconnectTimer = null; }
   if (tabData.heartbeatTimer) { clearInterval(tabData.heartbeatTimer); tabData.heartbeatTimer = null; }
   if (tabData.heartbeatTimeout) { clearTimeout(tabData.heartbeatTimeout); tabData.heartbeatTimeout = null; }
@@ -1165,8 +1178,10 @@ function connectTab(tabId: string): void {
   };
 
   ws.onerror = () => {
-    const error = diagnoseError(null, tabData);
-    showConnectionError(error);
+    try {
+      const error = diagnoseError(null, tabData);
+      showConnectionError(error);
+    } catch { /* ignore render errors */ }
   };
 
   ws.onclose = (event: CloseEvent) => {
@@ -1998,6 +2013,7 @@ const paletteCommands: PaletteCommand[] = [
 ];
 
 let paletteActiveIndex = 0;
+let paletteFilterTimer: number | null = null;
 
 function toggleCommandPalette(): void {
   const palette = $('commandPalette');
@@ -2009,6 +2025,8 @@ function toggleCommandPalette(): void {
     input.focus();
     paletteActiveIndex = 0;
     filterCommands('');
+  } else {
+    if (paletteFilterTimer) { clearTimeout(paletteFilterTimer); paletteFilterTimer = null; }
   }
 }
 
@@ -2100,7 +2118,9 @@ function initApp(): void {
   // P6-1: 命令面板
   $('commandPalette')?.querySelector('.dialog-overlay')?.addEventListener('click', toggleCommandPalette);
   $('paletteInput')?.addEventListener('input', (e) => {
-    filterCommands((e.target as HTMLInputElement).value);
+    const value = (e.target as HTMLInputElement).value;
+    if (paletteFilterTimer) clearTimeout(paletteFilterTimer);
+    paletteFilterTimer = window.setTimeout(() => filterCommands(value), 50);
   });
   $('paletteInput')?.addEventListener('keydown', (e) => {
     const kb = e as KeyboardEvent;

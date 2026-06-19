@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="manifest" href="/manifest.webmanifest">
-  <script type="module" crossorigin src="/assets/main-CJURkWmW.js"></script>
+  <script type="module" crossorigin src="/assets/main-DI4v4s2M.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/main-DCloS6wW.css">
 </head>
 <body>
@@ -83,7 +83,7 @@
 
       <!-- 左侧终端面板 -->
       <div id="terminalPanel">
-        <div id="tabBar">
+        <div id="tabBar" role="tablist" aria-label="终端标签">
           <div id="tabList"></div>
           <div id="tabSpacer"></div>
         </div>
@@ -129,7 +129,7 @@
             <button class="btn-toolbar" data-cmd="foreColor" data-arg="#61afef" title="蓝色"><i class="fa-solid fa-palette" style="color:#61afef"></i></button>
             <button class="btn-toolbar" data-cmd="removeFormat" title="清除格式"><i class="fa-solid fa-eraser"></i></button>
           </div>
-          <div id="snippetContent" contenteditable="true" placeholder="在此输入笔记内容..."></div>
+            <div id="snippetContent" contenteditable="true" aria-label="笔记内容编辑器" placeholder="在此输入笔记内容..."></div>
           <div id="snippetActions">
             <button id="saveSnippetBtn" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> <span id="saveSnippetBtnText">保存</span></button>
             <button id="deleteSnippetBtn" class="btn-danger"><i class="fa-solid fa-trash"></i> 删除</button>
