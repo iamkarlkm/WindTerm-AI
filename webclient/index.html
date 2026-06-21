@@ -2,7 +2,14 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WindTerm AI">
+  <meta name="theme-color" content="#1e1e2e">
+  <!-- iOS 主屏幕图标 -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png">
+  <link rel="icon" type="image/png" href="/favicon.png">
   <title>WindTerm AI - Web Terminal Client</title>
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
@@ -31,7 +38,7 @@
         <i class="fa-solid fa-terminal"></i>
         <span>WindTerm AI</span>
       </div>
-      <div class="connection-bar">
+      <div class="connection-bar" id="connectionBar">
         <input type="text" id="hostInput" placeholder="主机" value="localhost" title="主机地址">
         <input type="number" id="portInput" placeholder="端口" value="22" class="desktop-only" title="端口">
         <input type="text" id="userInput" placeholder="用户" class="desktop-only" title="用户名">
@@ -40,6 +47,7 @@
         <button id="saveTemplateBtn" class="btn-sm desktop-only" title="保存为配置模板"><i class="fa-solid fa-bookmark"></i></button>
       </div>
       <div class="actions">
+        <button id="mobileToolbarBtn" class="btn-icon mobile-only" title="工具栏"><i class="fa-solid fa-bars"></i></button>
         <button id="toggleSessions" class="btn-icon" title="会话管理"><i class="fa-solid fa-server"></i></button>
         <button id="toggleSnippets" class="btn-icon" title="碎片笔记"><i class="fa-solid fa-note-sticky"></i></button>
         <button id="toggleChat" class="btn-icon" title="会话聊天" style="display:none"><i class="fa-solid fa-comments"></i></button>
@@ -87,6 +95,19 @@
           <div id="tabSpacer"></div>
         </div>
         <div id="terminalContainer">
+          <!-- 移动端虚拟键盘工具栏 -->
+          <div id="vkBar" class="mobile-only">
+            <button class="vk-btn" data-key="Ctrl">Ctrl</button>
+            <button class="vk-btn" data-key="Alt">Alt</button>
+            <button class="vk-btn" data-key="Escape">Esc</button>
+            <button class="vk-btn" data-key="Tab">Tab</button>
+            <button class="vk-btn vk-arrow" data-key="ArrowUp">&uarr;</button>
+            <button class="vk-btn vk-arrow" data-key="ArrowDown">&darr;</button>
+            <button class="vk-btn vk-arrow" data-key="ArrowLeft">&larr;</button>
+            <button class="vk-btn vk-arrow" data-key="ArrowRight">&rarr;</button>
+            <button class="vk-btn" data-key="/">/</button>
+            <button class="vk-btn" data-key="|">|</button>
+          </div>
           <div id="terminalHint">
             <div class="hint-icon"><i class="fa-solid fa-terminal fa-3x"></i></div>
             <h2>未连接</h2>

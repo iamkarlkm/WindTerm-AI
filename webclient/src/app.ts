@@ -2159,6 +2159,42 @@ function initApp(): void {
     );
   });
 
+  // 移动端：工具栏折叠/展开
+  $('mobileToolbarBtn')?.addEventListener('click', () => {
+    const bar = $('connectionBar');
+    if (bar) bar.classList.toggle('expanded');
+  });
+
+  // 移动端：虚拟键盘按钮
+  document.querySelectorAll('#vkBar .vk-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = (btn as HTMLElement).dataset.key;
+      if (!key) return;
+      const tabData = state.tabs.get(state.currentTab || '');
+      if (tabData && tabData.ws) {
+        if (key === 'Escape') {
+          safeWsSend(tabData.ws, { action: 'input', sessionId: tabData.sessionId, input: '\x1b' });
+        } else if (key === 'Tab') {
+          safeWsSend(tabData.ws, { action: 'input', sessionId: tabData.sessionId, input: '\t' });
+        } else {
+          safeWsSend(tabData.ws, { action: 'input', sessionId: tabData.sessionId, input: key });
+        }
+      }
+    });
+  });
+
+  // 移动端：点击终端区域关闭侧边栏/面板
+  $('terminalContainer')?.addEventListener('click', () => {
+    const sessionSidebar = $('sessionSidebar');
+    const snippetPanel = $('snippetPanel');
+    const chatPanel = $('chatPanel');
+    if (window.innerWidth <= 800) {
+      if (sessionSidebar && !sessionSidebar.classList.contains('hidden')) sessionSidebar.classList.add('hidden');
+      if (snippetPanel && !snippetPanel.classList.contains('hidden')) snippetPanel.classList.add('hidden');
+      if (chatPanel && !chatPanel.classList.contains('hidden')) chatPanel.classList.add('hidden');
+    }
+  });
+
   // 面板切换
   $('toggleSessions')?.addEventListener('click', () => {
     $('sessionSidebar')?.classList.toggle('hidden');

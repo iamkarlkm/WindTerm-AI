@@ -278,19 +278,129 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sa
 ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--overlay); }
 
-/* 响应式 */
+/* =========================== 移动端深度适配 =========================== */
 @media (max-width: 800px) {
-  .connection-bar { flex-wrap: wrap; }
-  .connection-bar input { flex: 1 1 auto; min-width: 60px; }
-  #hostInput { min-width: 100px; }
-  #snippetPanel { position: fixed; right: 0; top: 48px; bottom: 28px; width: 100% !important; max-width: 380px; z-index: 50; }
-  #snippetPanel.hidden { display: none; }
-  #sessionSidebar { position: fixed; left: 0; top: 48px; bottom: 28px; width: 100% !important; max-width: 300px; z-index: 50; }
-  #sessionSidebar.hidden { display: none; }
-  .mobile-only { display: inline-flex !important; }
-  .desktop-only { display: none !important; }
+  /* 顶栏 */
+  #topbar {
+    gap: 4px; padding: 4px 6px; flex-wrap: wrap; min-height: 40px;
+  }
   .brand span { display: none; }
-  #topbar { gap: 6px; padding: 6px 8px; }
+  .brand i { font-size: 18px; }
+
+  /* 连接栏默认折叠，点击工具栏按钮展开 */
+  .connection-bar {
+    display: none; flex-wrap: wrap; gap: 4px; width: 100%; order: 10;
+  }
+  .connection-bar.expanded { display: flex; }
+  .connection-bar input {
+    flex: 1 1 auto; min-width: 60px; height: 32px; font-size: 13px;
+  }
+  #hostInput { min-width: 100px; }
+  #tokenInput { flex: 2 1 80px; }
+  #connectBtn { height: 32px; font-size: 13px; }
+
+  /* 操作按钮 */
+  .actions { gap: 2px; }
+  .actions .btn-icon { width: 32px; height: 32px; font-size: 14px; }
+  .desktop-only { display: none !important; }
+  .mobile-only { display: inline-flex !important; }
+
+  /* 主内容区域 */
+  #mainArea { flex-direction: column; }
+
+  /* 标签栏 — 横向滚动 */
+  #tabBar {
+    overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  #tabBar::-webkit-scrollbar { display: none; }
+  #tabList { flex-wrap: nowrap; min-width: max-content; }
+  .tab-item {
+    min-width: 80px; max-width: 140px; flex-shrink: 0;
+    font-size: 12px; padding: 4px 8px; height: 30px;
+  }
+  .tab-close { width: 18px; height: 18px; line-height: 16px; font-size: 14px; }
+
+  /* 终端区域 */
+  #terminalContainer { height: calc(100vh - 90px - 48px); }
+
+  /* 侧边栏 — 全屏覆盖抽屉 */
+  #sessionSidebar {
+    position: fixed; left: -100%; top: 40px; bottom: 28px;
+    width: 85% !important; max-width: 320px; z-index: 60;
+    transition: left 0.25s var(--transition); box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+  }
+  #sessionSidebar:not(.hidden) { left: 0; }
+  #sessionSidebar.hidden { display: block; left: -100%; }
+  /* 侧边栏遮罩 */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; z-index: 55;
+    background: rgba(0,0,0,0.35);
+  }
+  .sidebar-overlay.active { display: block; }
+
+  /* 笔记面板 — 全屏覆盖 */
+  #snippetPanel {
+    position: fixed; right: -100%; top: 40px; bottom: 28px;
+    width: 85% !important; max-width: 380px; z-index: 60;
+    transition: right 0.25s var(--transition); box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+  }
+  #snippetPanel:not(.hidden) { right: 0; }
+  #snippetPanel.hidden { display: block; right: -100%; }
+  #snippetEditor { padding: 10px; }
+  #snippetContent { min-height: 200px; font-size: 14px; }
+
+  /* 聊天面板 — 全屏覆盖 */
+  #chatPanel {
+    position: fixed; right: -100%; top: 40px; bottom: 28px;
+    width: 85% !important; max-width: 380px; z-index: 60;
+    transition: right 0.25s var(--transition); box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+  }
+  #chatPanel:not(.hidden) { right: 0; }
+  #chatPanel.hidden { display: block; right: -100%; }
+  #chatInput { font-size: 14px; }
+
+  /* 虚拟键盘工具栏 */
+  #vkBar {
+    display: none; flex-wrap: wrap; gap: 4px; padding: 4px;
+    background: var(--bg-alt); border-bottom: 1px solid var(--border);
+    justify-content: center;
+  }
+  #vkBar.visible { display: flex; }
+  .vk-btn {
+    height: 28px; padding: 0 8px; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--bg); color: var(--text);
+    font-size: 11px; cursor: pointer; min-width: 32px;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; touch-action: manipulation;
+  }
+  .vk-btn:active { background: var(--accent); color: var(--bg); }
+  .vk-arrow { font-size: 14px; font-weight: 700; }
+
+  /* 触摸优化 */
+  .btn-icon, .btn-sm, .btn-primary, .session-entry,
+  .history-entry, .template-entry, .snippet-list-item,
+  .tab-item, .vk-btn, .menu-item {
+    min-height: 36px; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  button, .btn-icon, .btn-sm, .btn-primary { touch-action: manipulation; }
+
+  /* 对话框全屏 */
+  #shortcutsDialog .dialog-body { max-height: 60vh; overflow-y: auto; }
+  #commandPalette .dialog-overlay { background: rgba(0,0,0,0.5); }
+  #paletteInput { font-size: 16px; height: 40px; }
+  .palette-item { font-size: 14px; padding: 10px 14px; min-height: 42px; }
+
+  /* 状态栏 */
+  #statusbar { height: 24px; padding: 0 8px; font-size: 11px; }
+
+  /* 终端 hint */
+  #terminalHint { padding: 30px 16px; }
+  #terminalHint h2 { font-size: 18px; }
+  #terminalHint p { font-size: 13px; }
+  .hint-item { font-size: 12px; padding: 6px 0; }
 }
 
 /* 会话管理侧边栏 */
