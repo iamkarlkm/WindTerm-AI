@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "identifier": "com.windterm.webclient",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "npm run build",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "",
-    "frontendDist": ".."
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
@@ -31,7 +31,7 @@
       "menuOnLeftClick": false
     },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https:;"
+      "csp": "default-src 'self'; connect-src 'self' ws: wss: http://localhost:* https://*.monkeycode-ai.online:*; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
   },
   "bundle": {
@@ -43,6 +43,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "android": {
+      "minSdkVersion": 26
+    }
   }
 }

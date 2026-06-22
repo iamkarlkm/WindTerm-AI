@@ -6,6 +6,10 @@ authors = ["WindTerm Team"]
 edition = "2021"
 rust-version = "1.60"
 
+[lib]
+name = "windterm_webclient_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
