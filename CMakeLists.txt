@@ -415,6 +415,8 @@ if(BUILD_WIDGET)
         src/Widget/BatchRenderer.h
         src/Session/SessionManager.cpp
         src/Session/SessionManager.h
+        src/Utility/Logger.cpp
+        src/Utility/Logger.h
     )
     
     target_include_directories(WindTermWidget PUBLIC
