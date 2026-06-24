@@ -4,6 +4,7 @@
 #include "Widget/TerminalMainWindow.h"
 #include "Renderer/PlatformDetector.h"
 #include "Utility/Logger.h"
+#include "Utility/TerminalOutputFilter.h"
 
 int main(int argc, char* argv[]) {
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
@@ -35,9 +36,14 @@ int main(int argc, char* argv[]) {
         "Minimum log level: debug, info, warning, error, critical, fatal, off",
         "level",
         "debug");
+    QCommandLineOption filterConfigOption(
+        QStringList() << "filter-config",
+        "Terminal output filter rules (JSON file)",
+        "file");
 
     parser.addOption(logFileOption);
     parser.addOption(logLevelOption);
+    parser.addOption(filterConfigOption);
     parser.process(app);
 
     QString logFile = parser.value(logFileOption);
@@ -52,6 +58,9 @@ int main(int argc, char* argv[]) {
     else if (logLevelStr == "off")     minLevel = LogLevel::Off;
 
     Logger::instance().init(logFile, minLevel, true);
+
+    QString filterConfig = parser.value(filterConfigOption);
+    TerminalOutputFilter::instance().init(filterConfig);
 
     RendererBackend backend = PlatformDetector::detectBestBackend();
     LOG_DEBUG("Main") << "Detected backend:"

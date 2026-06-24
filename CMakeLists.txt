@@ -26,7 +26,7 @@ option(WITH_DIRECTX "Enable DirectX12 Backend (Windows)" ON)
 option(WITH_VULKAN "Enable Vulkan Backend" OFF)
 
 # 查找依赖
-find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets OpenGL Sql Network)
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets OpenGL Sql Network WebSockets)
 
 if(BUILD_RENDERER)
     message(STATUS "Building GPU Renderer Module")
@@ -417,6 +417,8 @@ if(BUILD_WIDGET)
         src/Session/SessionManager.h
         src/Utility/Logger.cpp
         src/Utility/Logger.h
+        src/Utility/TerminalOutputFilter.cpp
+        src/Utility/TerminalOutputFilter.h
     )
     
     target_include_directories(WindTermWidget PUBLIC
@@ -441,6 +443,7 @@ if(BUILD_WIDGET)
         Qt5::OpenGL
         Qt5::Sql
         Qt5::Network
+        Qt5::WebSockets
     )
     
     target_compile_definitions(WindTermWidget PRIVATE
@@ -460,6 +463,7 @@ if(BUILD_APP)
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
+        Qt5::WebSockets
     )
     
     if(APPLE AND WITH_METAL)

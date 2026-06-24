@@ -1,4 +1,5 @@
 #include "TerminalSession.h"
+#include "Utility/TerminalOutputFilter.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDebug>
@@ -103,6 +104,8 @@ void TerminalSession::onPtyFinished(int exitCode, QProcess::ExitStatus exitStatu
 }
 
 void TerminalSession::processAnsiData(const QByteArray& data) {
+    TerminalOutputFilter::instance().processOutput(data);
+
     if (data.contains("\x1b[?2004h")) {
         m_bracketedPasteEnabled = true;
     } else if (data.contains("\x1b[?2004l")) {
