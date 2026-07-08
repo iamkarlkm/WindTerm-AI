@@ -2,9 +2,12 @@
 #include <QSurfaceFormat>
 #include <QCommandLineParser>
 #include "Widget/TerminalMainWindow.h"
+#include "Widget/TerminalWidget.h"
+#include "Widget/TerminalPane.h"
 #include "Renderer/PlatformDetector.h"
 #include "Utility/Logger.h"
 #include "Utility/TerminalOutputFilter.h"
+#include "Utility/TerminalOutputServer.h"
 
 int main(int argc, char* argv[]) {
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
@@ -40,10 +43,16 @@ int main(int argc, char* argv[]) {
         QStringList() << "filter-config",
         "Terminal output filter rules (JSON file)",
         "file");
+    QCommandLineOption filterServerPortOption(
+        QStringList() << "filter-server-port",
+        "Start WebSocket server for dynamic filter subscriptions on <port>",
+        "port",
+        "0");
 
     parser.addOption(logFileOption);
     parser.addOption(logLevelOption);
     parser.addOption(filterConfigOption);
+    parser.addOption(filterServerPortOption);
     parser.process(app);
 
     QString logFile = parser.value(logFileOption);
@@ -62,11 +71,66 @@ int main(int argc, char* argv[]) {
     QString filterConfig = parser.value(filterConfigOption);
     TerminalOutputFilter::instance().init(filterConfig);
 
+    quint16 filterServerPort = parser.value(filterServerPortOption).toUShort();
+    if (filterServerPort > 0) {
+        if (TerminalOutputServer::instance().start(filterServerPort)) {
+            QObject::connect(
+                &TerminalOutputFilter::instance(),
+                &TerminalOutputFilter::lineProcessed,
+                &TerminalOutputServer::instance(),
+                &TerminalOutputServer::feedLine);
+        }
+    }
+
     RendererBackend backend = PlatformDetector::detectBestBackend();
     LOG_DEBUG("Main") << "Detected backend:"
                       << PlatformDetector::backendToString(backend);
 
     TerminalMainWindow mainWindow;
+
+    if (filterServerPort > 0 && TerminalOutputServer::instance().isRunning()) {
+        QObject::connect(
+            &TerminalOutputServer::instance(),
+            &TerminalOutputServer::commandRequested,
+            &mainWindow, [&mainWindow](const QString &command) {
+                TerminalWidget *tw = mainWindow.activeTerminal();
+                if (!tw) return;
+                TerminalPane *pane = tw->activePane();
+                if (!pane) return;
+                TerminalSession *session = pane->session();
+                if (session && session->isRunning()) {
+                    session->write(command.toUtf8());
+                }
+            });
+
+        QObject::connect(
+            &TerminalOutputServer::instance(),
+            &TerminalOutputServer::rawBytesRequested,
+            &mainWindow, [&mainWindow](const QByteArray &data) {
+                TerminalWidget *tw = mainWindow.activeTerminal();
+                if (!tw) return;
+                TerminalPane *pane = tw->activePane();
+                if (!pane) return;
+                TerminalSession *session = pane->session();
+                if (session && session->isRunning()) {
+                    session->write(data);
+                }
+            });
+
+        QObject::connect(
+            &TerminalOutputServer::instance(),
+            &TerminalOutputServer::signalRequested,
+            &mainWindow, [&mainWindow](int sig) {
+                TerminalWidget *tw = mainWindow.activeTerminal();
+                if (!tw) return;
+                TerminalPane *pane = tw->activePane();
+                if (!pane) return;
+                TerminalSession *session = pane->session();
+                if (session && session->isRunning()) {
+                    session->sendSignal(sig);
+                }
+            });
+    }
     mainWindow.show();
 
     return app.exec();

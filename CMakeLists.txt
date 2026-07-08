@@ -419,6 +419,8 @@ if(BUILD_WIDGET)
         src/Utility/Logger.h
         src/Utility/TerminalOutputFilter.cpp
         src/Utility/TerminalOutputFilter.h
+        src/Utility/TerminalOutputServer.cpp
+        src/Utility/TerminalOutputServer.h
     )
     
     target_include_directories(WindTermWidget PUBLIC

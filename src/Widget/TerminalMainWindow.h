@@ -20,6 +20,8 @@ class TerminalMainWindow : public QMainWindow {
 public:
     explicit TerminalMainWindow(QWidget* parent = nullptr);
     ~TerminalMainWindow() override;
+
+    TerminalWidget* activeTerminal() const { return m_activeTerminal; }
     
 protected:
     void closeEvent(QCloseEvent* event) override;

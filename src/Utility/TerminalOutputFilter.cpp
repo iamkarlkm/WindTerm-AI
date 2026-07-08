@@ -1,4 +1,5 @@
 #include "Utility/TerminalOutputFilter.h"
+#include "Utility/TerminalOutputServer.h"
 #include "Utility/Logger.h"
 
 #include <QFile>
@@ -80,6 +81,10 @@ bool TerminalOutputFilter::loadConfig(const QString &configPath)
     }
 
     m_configPath = configPath;
+
+    if (root.contains("macros") && root["macros"].isObject()) {
+        TerminalOutputServer::instance().loadMacros(root["macros"].toObject());
+    }
 
     LOG_INFO("OutputFilter") << "Loaded " << m_rules.size()
                              << " filter rules from " << configPath;
@@ -214,6 +219,7 @@ void TerminalOutputFilter::processOutput(const QByteArray &data)
         }
 
         QString line = QString::fromUtf8(lineBytes);
+        emit lineProcessed(line);
 
         for (const FilterRule &rule : m_rules) {
             if (!rule.enabled) {

@@ -49,6 +49,7 @@ public:
 
 signals:
     void ruleMatched(const QString &ruleName, const QString &matchedText);
+    void lineProcessed(const QString &line);
     void configReloaded(int ruleCount);
 
 private:
